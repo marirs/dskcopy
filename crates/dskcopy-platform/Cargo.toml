@@ -1,0 +1,18 @@
+[package]
+name = "dskcopy-platform"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+plist = "1"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+    "Win32_Devices_DeviceAndDriverInstallation",
+    "Win32_System_IO",
+] }

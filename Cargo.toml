@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "crates/dskcopy-core",
+    "crates/dskcopy-platform",
+    "crates/dskcopy-ui",
+    "crates/dskcopy-web",
+    "dskcopy",
+]
+resolver = "2"

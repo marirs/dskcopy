@@ -1,0 +1,11 @@
+[package]
+name = "dskcopy"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+dskcopy-core = { path = "../crates/dskcopy-core" }
+dskcopy-platform = { path = "../crates/dskcopy-platform" }
+dskcopy-ui = { path = "../crates/dskcopy-ui" }
+indicatif = "0.17"

@@ -1,0 +1,16 @@
+[package]
+name = "dskcopy-ui"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+
+[dependencies]
+slint = "1"
+i-slint-backend-winit = "1"
+dskcopy-core = { path = "../dskcopy-core" }
+dskcopy-platform = { path = "../dskcopy-platform" }
+rfd = "0.15"
+dirs = "5"
+
+[build-dependencies]
+slint-build = "1"
