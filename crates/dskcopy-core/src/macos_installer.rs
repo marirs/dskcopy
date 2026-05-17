@@ -211,6 +211,7 @@ fn find_createinstallmedia(dmg_path: &str) -> Option<String> {
 }
 
 /// Parse a percentage from a createinstallmedia output line.
+#[cfg(target_os = "macos")]
 fn parse_percent(line: &str) -> Option<f64> {
     // Lines look like: "Copying installation files…  42%"
     let pct_str = line.split_whitespace().last()?;

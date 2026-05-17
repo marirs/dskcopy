@@ -33,26 +33,11 @@ impl PlatformBackend for WindowsBackend {
 
 #[cfg(target_os = "windows")]
 fn list_devices_windows(opts: &ListOptions) -> Result<Vec<DeviceInfo>, String> {
-    use windows::core::GUID;
-    use windows::Win32::Devices::DeviceAndDriverInstallation::{
-        SetupDiDestroyDeviceInfoList, SetupDiEnumDeviceInfo, SetupDiGetClassDevsW,
-        SetupDiGetDeviceRegistryPropertyW, DIGCF_PRESENT, SPDRP_FRIENDLYNAME, SPDRP_HARDWAREID,
-        SP_DEVINFO_DATA,
-    };
-    use windows::Win32::Foundation::INVALID_HANDLE_VALUE;
-
-    // GUID_DEVINTERFACE_DISK
-    const DISK_GUID: GUID = GUID {
-        data1: 0x53F56307,
-        data2: 0xB6BF,
-        data3: 0x11D0,
-        data4: [0x94, 0xF2, 0x00, 0xA0, 0xC9, 0x1E, 0xFB, 0x8B],
-    };
-
     let boot_dev = get_boot_device_windows();
     let mut out = Vec::new();
 
-    // Use a simple approach: enumerate \\.\PhysicalDrive0 through 15
+    // Enumerate \\.\PhysicalDrive0 through PhysicalDrive15.
+    // (SetupAPI / GUID_DEVINTERFACE_DISK enumeration is a TODO refinement.)
     for n in 0..16u32 {
         let path = format!(r"\\.\PhysicalDrive{}", n);
         if let Some(info) = probe_physical_drive(&path, n, &boot_dev, opts) {
@@ -90,7 +75,7 @@ fn probe_physical_drive(
             None,
             OPEN_EXISTING,
             FILE_FLAG_NO_BUFFERING,
-            HANDLE(0),
+            HANDLE(std::ptr::null_mut()),
         )
         .ok()?
     };
@@ -204,7 +189,7 @@ fn get_disk_size(path: &str) -> Option<u64> {
             None,
             OPEN_EXISTING,
             FILE_FLAG_NO_BUFFERING,
-            HANDLE(0),
+            HANDLE(std::ptr::null_mut()),
         )
         .ok()?
     };
@@ -272,7 +257,7 @@ fn get_physical_drive_for_volume(volume_path: &str) -> Option<String> {
             None,
             OPEN_EXISTING,
             Default::default(),
-            HANDLE(0),
+            HANDLE(std::ptr::null_mut()),
         )
         .ok()?
     };
