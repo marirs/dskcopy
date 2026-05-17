@@ -189,7 +189,10 @@ fn decode_iso_name(raw: &[u8], _rec: &[u8]) -> String {
         let looks_utf16 = raw.chunks(2).all(|c| c[0] == 0 || c[1] == 0);
         if looks_utf16 && raw[0] == 0 {
             // UTF-16 BE
-            let u16_chars: Vec<u16> = raw.chunks(2).map(|c| u16::from_be_bytes([c[0], c[1]])).collect();
+            let u16_chars: Vec<u16> = raw
+                .chunks(2)
+                .map(|c| u16::from_be_bytes([c[0], c[1]]))
+                .collect();
             return String::from_utf16_lossy(&u16_chars).to_string();
         }
     }

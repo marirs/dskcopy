@@ -7,8 +7,15 @@ use std::time::Instant;
 #[derive(Debug, Clone)]
 pub enum VerifyError {
     Io(String),
-    Mismatch { offset: u64, expected: u8, actual: u8 },
-    HashMismatch { source: String, target: String },
+    Mismatch {
+        offset: u64,
+        expected: u8,
+        actual: u8,
+    },
+    HashMismatch {
+        source: String,
+        target: String,
+    },
 }
 
 impl std::fmt::Display for VerifyError {
@@ -45,8 +52,9 @@ fn verify_byte_by_byte(
     block_size: usize,
     progress: &mut dyn FnMut(ProgressInfo),
 ) -> Result<(), VerifyError> {
-    let mut src = File::open(image_path)
-        .map_err(|_| VerifyError::Io("Could not open source image for verification.".to_string()))?;
+    let mut src = File::open(image_path).map_err(|_| {
+        VerifyError::Io("Could not open source image for verification.".to_string())
+    })?;
     let mut dst = File::open(device).map_err(|_| {
         VerifyError::Io(
             "Could not open target device for verification. Try running with elevated privileges."
@@ -65,9 +73,9 @@ fn verify_byte_by_byte(
     let start = Instant::now();
 
     loop {
-        let n = src
-            .read(&mut src_buf)
-            .map_err(|_| VerifyError::Io("Could not read source image during verification.".to_string()))?;
+        let n = src.read(&mut src_buf).map_err(|_| {
+            VerifyError::Io("Could not read source image during verification.".to_string())
+        })?;
         if n == 0 {
             break;
         }

@@ -33,13 +33,13 @@ impl PlatformBackend for WindowsBackend {
 
 #[cfg(target_os = "windows")]
 fn list_devices_windows(opts: &ListOptions) -> Result<Vec<DeviceInfo>, String> {
+    use windows::core::GUID;
     use windows::Win32::Devices::DeviceAndDriverInstallation::{
         SetupDiDestroyDeviceInfoList, SetupDiEnumDeviceInfo, SetupDiGetClassDevsW,
-        SetupDiGetDeviceRegistryPropertyW, DIGCF_PRESENT, SP_DEVINFO_DATA,
-        SPDRP_FRIENDLYNAME, SPDRP_HARDWAREID,
+        SetupDiGetDeviceRegistryPropertyW, DIGCF_PRESENT, SPDRP_FRIENDLYNAME, SPDRP_HARDWAREID,
+        SP_DEVINFO_DATA,
     };
     use windows::Win32::Foundation::INVALID_HANDLE_VALUE;
-    use windows::core::GUID;
 
     // GUID_DEVINTERFACE_DISK
     const DISK_GUID: GUID = GUID {
@@ -70,13 +70,12 @@ fn probe_physical_drive(
     boot_dev: &Option<String>,
     opts: &ListOptions,
 ) -> Option<DeviceInfo> {
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::{GENERIC_READ, HANDLE};
     use windows::Win32::Storage::FileSystem::{
-        CreateFileW, FILE_FLAG_NO_BUFFERING, FILE_SHARE_READ, FILE_SHARE_WRITE,
-        OPEN_EXISTING,
+        CreateFileW, FILE_FLAG_NO_BUFFERING, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
     };
     use windows::Win32::System::IO::DeviceIoControl;
-    use windows::Win32::Foundation::{GENERIC_READ, HANDLE};
-    use windows::core::PCWSTR;
 
     // IOCTL_STORAGE_QUERY_PROPERTY = 0x002D1400
     const IOCTL_STORAGE_QUERY_PROPERTY: u32 = 0x002D_1400;
@@ -157,10 +156,7 @@ fn probe_physical_drive(
         return None;
     }
 
-    let is_boot = boot_dev
-        .as_deref()
-        .map(|b| b == path)
-        .unwrap_or(false);
+    let is_boot = boot_dev.as_deref().map(|b| b == path).unwrap_or(false);
     let is_system = !removable || !is_usb || is_boot;
 
     if !opts.show_all && is_system {
@@ -178,7 +174,11 @@ fn probe_physical_drive(
         name: name.trim().to_string(),
         size_bytes,
         removable,
-        bus: if is_usb { "USB".to_string() } else { "Unknown".to_string() },
+        bus: if is_usb {
+            "USB".to_string()
+        } else {
+            "Unknown".to_string()
+        },
         raw_device: Some(path.to_string()),
         is_system_drive: is_system,
     })
@@ -186,13 +186,12 @@ fn probe_physical_drive(
 
 #[cfg(target_os = "windows")]
 fn get_disk_size(path: &str) -> Option<u64> {
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::{GENERIC_READ, HANDLE};
     use windows::Win32::Storage::FileSystem::{
-        CreateFileW, FILE_FLAG_NO_BUFFERING, FILE_SHARE_READ, FILE_SHARE_WRITE,
-        OPEN_EXISTING,
+        CreateFileW, FILE_FLAG_NO_BUFFERING, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
     };
     use windows::Win32::System::IO::DeviceIoControl;
-    use windows::Win32::Foundation::{GENERIC_READ, HANDLE};
-    use windows::core::PCWSTR;
 
     const IOCTL_DISK_GET_LENGTH_INFO: u32 = 0x0007_405C;
 
@@ -252,16 +251,19 @@ fn get_boot_device_windows() -> Option<String> {
 
 #[cfg(target_os = "windows")]
 fn get_physical_drive_for_volume(volume_path: &str) -> Option<String> {
+    use windows::core::PCWSTR;
+    use windows::Win32::Foundation::{GENERIC_READ, HANDLE};
     use windows::Win32::Storage::FileSystem::{
         CreateFileW, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
     };
     use windows::Win32::System::IO::DeviceIoControl;
-    use windows::Win32::Foundation::{GENERIC_READ, HANDLE};
-    use windows::core::PCWSTR;
 
     const IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS: u32 = 0x0005_60000;
 
-    let wide: Vec<u16> = volume_path.encode_utf16().chain(std::iter::once(0)).collect();
+    let wide: Vec<u16> = volume_path
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
     let handle = unsafe {
         CreateFileW(
             PCWSTR(wide.as_ptr()),
@@ -305,6 +307,11 @@ fn extract_string(buf: &[u8], offset: usize) -> Option<String> {
     if offset == 0 || offset >= buf.len() {
         return None;
     }
-    let end = buf[offset..].iter().position(|&b| b == 0).unwrap_or(buf.len() - offset);
-    std::str::from_utf8(&buf[offset..offset + end]).ok().map(|s| s.to_string())
+    let end = buf[offset..]
+        .iter()
+        .position(|&b| b == 0)
+        .unwrap_or(buf.len() - offset);
+    std::str::from_utf8(&buf[offset..offset + end])
+        .ok()
+        .map(|s| s.to_string())
 }

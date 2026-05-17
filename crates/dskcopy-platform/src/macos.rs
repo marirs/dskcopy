@@ -16,12 +16,14 @@ impl PlatformBackend for MacOsBackend {
             &["list", "-plist", "external"]
         };
 
-        let output = Command::new("diskutil")
-            .args(args)
-            .output()
-            .map_err(|_| "Could not enumerate drives. Please ensure diskutil is available.".to_string())?;
+        let output = Command::new("diskutil").args(args).output().map_err(|_| {
+            "Could not enumerate drives. Please ensure diskutil is available.".to_string()
+        })?;
         if !output.status.success() {
-            return Err("Could not enumerate drives. Please check macOS disk access permissions.".to_string());
+            return Err(
+                "Could not enumerate drives. Please check macOS disk access permissions."
+                    .to_string(),
+            );
         }
 
         let value = Value::from_reader_xml(output.stdout.as_slice())
@@ -142,7 +144,11 @@ impl PlatformBackend for MacOsBackend {
 /// Returns true if diskutil metadata indicates an internal/APFS system volume.
 fn is_internal_drive(info: &plist::Dictionary) -> bool {
     // "Internal" flag
-    if info.get("Internal").and_then(Value::as_boolean).unwrap_or(false) {
+    if info
+        .get("Internal")
+        .and_then(Value::as_boolean)
+        .unwrap_or(false)
+    {
         return true;
     }
     // APFS container → likely system

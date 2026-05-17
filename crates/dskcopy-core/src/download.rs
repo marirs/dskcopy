@@ -40,29 +40,93 @@ pub struct DownloadEntry {
 /// Curated catalog of Windows ISO editions available from Microsoft.
 pub static CATALOG: &[DownloadEntry] = &[
     DownloadEntry {
-        id:                  "win11-25h2",
-        name:                "Windows 11 25H2",
-        product_edition_id:  3321,
+        id: "win11-25h2",
+        name: "Windows 11 25H2",
+        product_edition_id: 3321,
         locales: &[
-            "ar-sa", "bg-bg", "cs-cz", "da-dk", "de-de", "el-gr", "en-gb",
-            "en-us", "es-es", "es-mx", "et-ee", "fi-fi", "fr-ca", "fr-fr",
-            "he-il", "hr-hr", "hu-hu", "it-it", "ja-jp", "ko-kr", "lt-lt",
-            "lv-lv", "nb-no", "nl-nl", "pl-pl", "pt-br", "pt-pt", "ro-ro",
-            "ru-ru", "sk-sk", "sl-si", "sr-latn-rs", "sv-se", "th-th",
-            "tr-tr", "uk-ua", "zh-cn", "zh-tw",
+            "ar-sa",
+            "bg-bg",
+            "cs-cz",
+            "da-dk",
+            "de-de",
+            "el-gr",
+            "en-gb",
+            "en-us",
+            "es-es",
+            "es-mx",
+            "et-ee",
+            "fi-fi",
+            "fr-ca",
+            "fr-fr",
+            "he-il",
+            "hr-hr",
+            "hu-hu",
+            "it-it",
+            "ja-jp",
+            "ko-kr",
+            "lt-lt",
+            "lv-lv",
+            "nb-no",
+            "nl-nl",
+            "pl-pl",
+            "pt-br",
+            "pt-pt",
+            "ro-ro",
+            "ru-ru",
+            "sk-sk",
+            "sl-si",
+            "sr-latn-rs",
+            "sv-se",
+            "th-th",
+            "tr-tr",
+            "uk-ua",
+            "zh-cn",
+            "zh-tw",
         ],
     },
     DownloadEntry {
-        id:                  "win10-22h2",
-        name:                "Windows 10 22H2",
-        product_edition_id:  2618,
+        id: "win10-22h2",
+        name: "Windows 10 22H2",
+        product_edition_id: 2618,
         locales: &[
-            "ar-sa", "bg-bg", "cs-cz", "da-dk", "de-de", "el-gr", "en-gb",
-            "en-us", "es-es", "es-mx", "et-ee", "fi-fi", "fr-ca", "fr-fr",
-            "he-il", "hr-hr", "hu-hu", "it-it", "ja-jp", "ko-kr", "lt-lt",
-            "lv-lv", "nb-no", "nl-nl", "pl-pl", "pt-br", "pt-pt", "ro-ro",
-            "ru-ru", "sk-sk", "sl-si", "sr-latn-rs", "sv-se", "th-th",
-            "tr-tr", "uk-ua", "zh-cn", "zh-tw",
+            "ar-sa",
+            "bg-bg",
+            "cs-cz",
+            "da-dk",
+            "de-de",
+            "el-gr",
+            "en-gb",
+            "en-us",
+            "es-es",
+            "es-mx",
+            "et-ee",
+            "fi-fi",
+            "fr-ca",
+            "fr-fr",
+            "he-il",
+            "hr-hr",
+            "hu-hu",
+            "it-it",
+            "ja-jp",
+            "ko-kr",
+            "lt-lt",
+            "lv-lv",
+            "nb-no",
+            "nl-nl",
+            "pl-pl",
+            "pt-br",
+            "pt-pt",
+            "ro-ro",
+            "ru-ru",
+            "sk-sk",
+            "sl-si",
+            "sr-latn-rs",
+            "sv-se",
+            "th-th",
+            "tr-tr",
+            "uk-ua",
+            "zh-cn",
+            "zh-tw",
         ],
     },
 ];
@@ -85,10 +149,10 @@ impl std::fmt::Display for DownloadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DownloadError::NotFound(s) => write!(f, "Not found: {s}"),
-            DownloadError::Network(s)  => write!(f, "Network error: {s}"),
-            DownloadError::Io(s)       => write!(f, "I/O error: {s}"),
-            DownloadError::Blocked(s)  => write!(f, "{s}"),
-            DownloadError::Cancelled   => write!(f, "Download cancelled"),
+            DownloadError::Network(s) => write!(f, "Network error: {s}"),
+            DownloadError::Io(s) => write!(f, "I/O error: {s}"),
+            DownloadError::Blocked(s) => write!(f, "{s}"),
+            DownloadError::Cancelled => write!(f, "Download cancelled"),
         }
     }
 }
@@ -110,12 +174,8 @@ pub fn find_entry(id: &str) -> Option<&'static DownloadEntry> {
 /// obtain an ISO for the given catalog entry.
 pub fn get_windows_download_page(entry: &DownloadEntry) -> &'static str {
     match entry.id {
-        "win11-25h2" => {
-            "https://www.microsoft.com/en-us/software-download/windows11"
-        }
-        "win10-22h2" => {
-            "https://www.microsoft.com/en-us/software-download/windows10ISO"
-        }
+        "win11-25h2" => "https://www.microsoft.com/en-us/software-download/windows11",
+        "win10-22h2" => "https://www.microsoft.com/en-us/software-download/windows10ISO",
         _ => "https://www.microsoft.com/en-us/software-download/windows11",
     }
 }
@@ -195,8 +255,20 @@ pub fn list_macos_installers() -> Vec<MacOsInstaller> {
             if !l.starts_with('*') || !l.contains("Title:") {
                 return None;
             }
-            let title = l.split("Title:").nth(1)?.split(',').next()?.trim().to_string();
-            let version = l.split("Version:").nth(1)?.split(',').next()?.trim().to_string();
+            let title = l
+                .split("Title:")
+                .nth(1)?
+                .split(',')
+                .next()?
+                .trim()
+                .to_string();
+            let version = l
+                .split("Version:")
+                .nth(1)?
+                .split(',')
+                .next()?
+                .trim()
+                .to_string();
             let size_bytes = l
                 .split("Size:")
                 .nth(1)
@@ -291,7 +363,12 @@ pub fn list_macos_from_catalog() -> Result<Vec<MacOsInstaller>, DownloadError> {
                 pkg_size = pdict
                     .get("Size")
                     .and_then(|v| v.as_unsigned_integer())
-                    .or_else(|| pdict.get("Size").and_then(|v| v.as_signed_integer()).map(|i| i as u64))
+                    .or_else(|| {
+                        pdict
+                            .get("Size")
+                            .and_then(|v| v.as_signed_integer())
+                            .map(|i| i as u64)
+                    })
                     .unwrap_or(0);
                 break;
             }
@@ -389,7 +466,11 @@ fn version_key(v: &str) -> Vec<u32> {
         return vec![0];
     }
     v.split('.')
-        .map(|p| p.chars().take_while(|c| c.is_ascii_digit()).collect::<String>())
+        .map(|p| {
+            p.chars()
+                .take_while(|c| c.is_ascii_digit())
+                .collect::<String>()
+        })
         .map(|s| s.parse::<u32>().unwrap_or(0))
         .collect()
 }
@@ -498,10 +579,7 @@ fn build_ms_client() -> Result<reqwest::blocking::Client, DownloadError> {
 ///    our locale.
 /// 6. Call `GetProductDownloadLinksBySku` and pull the `.iso` URL out of the
 ///    JSON response.
-pub fn get_windows_iso_url(
-    entry: &DownloadEntry,
-    locale: &str,
-) -> Result<String, DownloadError> {
+pub fn get_windows_iso_url(entry: &DownloadEntry, locale: &str) -> Result<String, DownloadError> {
     let client = build_ms_client()?;
     let session_id = uuid::Uuid::new_v4().to_string();
 
@@ -547,7 +625,10 @@ pub fn get_windows_iso_url(
     let sku_resp = client
         .get(&sku_url)
         .header("Accept", "application/json")
-        .header("Referer", "https://www.microsoft.com/software-download/windows11")
+        .header(
+            "Referer",
+            "https://www.microsoft.com/software-download/windows11",
+        )
         .send()
         .map_err(|e| DownloadError::Network(format!("SKU request failed: {e}")))?;
     let status = sku_resp.status();
@@ -581,7 +662,10 @@ pub fn get_windows_iso_url(
     let links_resp = client
         .get(&links_url)
         .header("Accept", "application/json")
-        .header("Referer", "https://www.microsoft.com/software-download/windows11")
+        .header(
+            "Referer",
+            "https://www.microsoft.com/software-download/windows11",
+        )
         .send()
         .map_err(|e| DownloadError::Network(format!("Download-link request failed: {e}")))?;
     let status = links_resp.status();
@@ -724,45 +808,45 @@ fn parse_sku_id(body: &str, locale: &str) -> Option<u64> {
 /// inside SKU responses.
 fn ms_language_name(locale: &str) -> &'static str {
     match locale.to_lowercase().as_str() {
-        "ar-sa"      => "Arabic",
-        "bg-bg"      => "Bulgarian",
-        "cs-cz"      => "Czech",
-        "da-dk"      => "Danish",
-        "de-de"      => "German",
-        "el-gr"      => "Greek",
-        "en-gb"      => "English International",
-        "en-us"      => "English",
-        "es-es"      => "Spanish",
-        "es-mx"      => "Spanish (Mexico)",
-        "et-ee"      => "Estonian",
-        "fi-fi"      => "Finnish",
-        "fr-ca"      => "French Canadian",
-        "fr-fr"      => "French",
-        "he-il"      => "Hebrew",
-        "hr-hr"      => "Croatian",
-        "hu-hu"      => "Hungarian",
-        "it-it"      => "Italian",
-        "ja-jp"      => "Japanese",
-        "ko-kr"      => "Korean",
-        "lt-lt"      => "Lithuanian",
-        "lv-lv"      => "Latvian",
-        "nb-no"      => "Norwegian",
-        "nl-nl"      => "Dutch",
-        "pl-pl"      => "Polish",
-        "pt-br"      => "Brazilian Portuguese",
-        "pt-pt"      => "Portuguese",
-        "ro-ro"      => "Romanian",
-        "ru-ru"      => "Russian",
-        "sk-sk"      => "Slovak",
-        "sl-si"      => "Slovenian",
+        "ar-sa" => "Arabic",
+        "bg-bg" => "Bulgarian",
+        "cs-cz" => "Czech",
+        "da-dk" => "Danish",
+        "de-de" => "German",
+        "el-gr" => "Greek",
+        "en-gb" => "English International",
+        "en-us" => "English",
+        "es-es" => "Spanish",
+        "es-mx" => "Spanish (Mexico)",
+        "et-ee" => "Estonian",
+        "fi-fi" => "Finnish",
+        "fr-ca" => "French Canadian",
+        "fr-fr" => "French",
+        "he-il" => "Hebrew",
+        "hr-hr" => "Croatian",
+        "hu-hu" => "Hungarian",
+        "it-it" => "Italian",
+        "ja-jp" => "Japanese",
+        "ko-kr" => "Korean",
+        "lt-lt" => "Lithuanian",
+        "lv-lv" => "Latvian",
+        "nb-no" => "Norwegian",
+        "nl-nl" => "Dutch",
+        "pl-pl" => "Polish",
+        "pt-br" => "Brazilian Portuguese",
+        "pt-pt" => "Portuguese",
+        "ro-ro" => "Romanian",
+        "ru-ru" => "Russian",
+        "sk-sk" => "Slovak",
+        "sl-si" => "Slovenian",
         "sr-latn-rs" => "Serbian Latin",
-        "sv-se"      => "Swedish",
-        "th-th"      => "Thai",
-        "tr-tr"      => "Turkish",
-        "uk-ua"      => "Ukrainian",
-        "zh-cn"      => "Chinese Simplified",
-        "zh-tw"      => "Chinese Traditional",
-        _            => "English",
+        "sv-se" => "Swedish",
+        "th-th" => "Thai",
+        "tr-tr" => "Turkish",
+        "uk-ua" => "Ukrainian",
+        "zh-cn" => "Chinese Simplified",
+        "zh-tw" => "Chinese Traditional",
+        _ => "English",
     }
 }
 
@@ -831,44 +915,44 @@ fn extract_rticks(body: &str) -> Option<String> {
 /// Human-readable display name for a locale code used in the catalog.
 pub fn locale_display_name(code: &str) -> &'static str {
     match code {
-        "ar-sa"      => "Arabic",
-        "bg-bg"      => "Bulgarian",
-        "cs-cz"      => "Czech",
-        "da-dk"      => "Danish",
-        "de-de"      => "German",
-        "el-gr"      => "Greek",
-        "en-gb"      => "English (UK)",
-        "en-us"      => "English (US)",
-        "es-es"      => "Spanish",
-        "es-mx"      => "Spanish (Mexico)",
-        "et-ee"      => "Estonian",
-        "fi-fi"      => "Finnish",
-        "fr-ca"      => "French (Canada)",
-        "fr-fr"      => "French",
-        "he-il"      => "Hebrew",
-        "hr-hr"      => "Croatian",
-        "hu-hu"      => "Hungarian",
-        "it-it"      => "Italian",
-        "ja-jp"      => "Japanese",
-        "ko-kr"      => "Korean",
-        "lt-lt"      => "Lithuanian",
-        "lv-lv"      => "Latvian",
-        "nb-no"      => "Norwegian",
-        "nl-nl"      => "Dutch",
-        "pl-pl"      => "Polish",
-        "pt-br"      => "Portuguese (Brazil)",
-        "pt-pt"      => "Portuguese",
-        "ro-ro"      => "Romanian",
-        "ru-ru"      => "Russian",
-        "sk-sk"      => "Slovak",
-        "sl-si"      => "Slovenian",
+        "ar-sa" => "Arabic",
+        "bg-bg" => "Bulgarian",
+        "cs-cz" => "Czech",
+        "da-dk" => "Danish",
+        "de-de" => "German",
+        "el-gr" => "Greek",
+        "en-gb" => "English (UK)",
+        "en-us" => "English (US)",
+        "es-es" => "Spanish",
+        "es-mx" => "Spanish (Mexico)",
+        "et-ee" => "Estonian",
+        "fi-fi" => "Finnish",
+        "fr-ca" => "French (Canada)",
+        "fr-fr" => "French",
+        "he-il" => "Hebrew",
+        "hr-hr" => "Croatian",
+        "hu-hu" => "Hungarian",
+        "it-it" => "Italian",
+        "ja-jp" => "Japanese",
+        "ko-kr" => "Korean",
+        "lt-lt" => "Lithuanian",
+        "lv-lv" => "Latvian",
+        "nb-no" => "Norwegian",
+        "nl-nl" => "Dutch",
+        "pl-pl" => "Polish",
+        "pt-br" => "Portuguese (Brazil)",
+        "pt-pt" => "Portuguese",
+        "ro-ro" => "Romanian",
+        "ru-ru" => "Russian",
+        "sk-sk" => "Slovak",
+        "sl-si" => "Slovenian",
         "sr-latn-rs" => "Serbian (Latin)",
-        "sv-se"      => "Swedish",
-        "th-th"      => "Thai",
-        "tr-tr"      => "Turkish",
-        "uk-ua"      => "Ukrainian",
-        "zh-cn"      => "Chinese (Simplified)",
-        "zh-tw"      => "Chinese (Traditional)",
-        _            => "English (US)",
+        "sv-se" => "Swedish",
+        "th-th" => "Thai",
+        "tr-tr" => "Turkish",
+        "uk-ua" => "Ukrainian",
+        "zh-cn" => "Chinese (Simplified)",
+        "zh-tw" => "Chinese (Traditional)",
+        _ => "English (US)",
     }
 }

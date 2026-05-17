@@ -17,8 +17,7 @@ use std::io::{Read, Seek, SeekFrom, Write};
 
 /// Returns true if the ISO supports UEFI extraction mode.
 pub fn detect_linux_uefi_iso(iso_path: &str) -> bool {
-    iso_has_file(iso_path, "EFI/BOOT/BOOTX64.EFI")
-        || iso_has_file(iso_path, "efi/boot/bootx64.efi")
+    iso_has_file(iso_path, "EFI/BOOT/BOOTX64.EFI") || iso_has_file(iso_path, "efi/boot/bootx64.efi")
 }
 
 /// Flash a Linux ISO by extracting its contents to a FAT32 partition.
@@ -29,8 +28,13 @@ pub fn flash_linux_extracted(
     cb: &mut dyn FnMut(ProgressInfo),
 ) -> Result<FlashResult, FlashError> {
     // 1. Format GPT + FAT32
-    format_drive(target, crate::PartitionScheme::Gpt, crate::FilesystemType::Fat32, Some(cb))
-        .map_err(FlashError::Format)?;
+    format_drive(
+        target,
+        crate::PartitionScheme::Gpt,
+        crate::FilesystemType::Fat32,
+        Some(cb),
+    )
+    .map_err(FlashError::Format)?;
 
     // 2. Collect ISO entries
     let entries = list_iso_entries(iso_path)
@@ -65,8 +69,8 @@ pub fn flash_linux_extracted(
             .map_err(|e| FlashError::User(format!("Cannot open FAT32 on device: {e}")))?;
         let root = fs.root_dir();
 
-        let mut iso_file = File::open(iso_path)
-            .map_err(|e| FlashError::User(format!("Cannot open ISO: {e}")))?;
+        let mut iso_file =
+            File::open(iso_path).map_err(|e| FlashError::User(format!("Cannot open ISO: {e}")))?;
 
         let start = std::time::Instant::now();
 
@@ -114,7 +118,10 @@ pub fn flash_linux_extracted(
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-fn ensure_dirs<T: fatfs::ReadWriteSeek>(root: &fatfs::Dir<T>, rel_path: &str) -> Result<(), FlashError> {
+fn ensure_dirs<T: fatfs::ReadWriteSeek>(
+    root: &fatfs::Dir<T>,
+    rel_path: &str,
+) -> Result<(), FlashError> {
     let parts: Vec<&str> = rel_path.split('/').collect();
     if parts.len() <= 1 {
         return Ok(());
@@ -188,5 +195,3 @@ fn extract_to_fat<T: fatfs::ReadWriteSeek>(
     }
     Ok(written)
 }
-
-

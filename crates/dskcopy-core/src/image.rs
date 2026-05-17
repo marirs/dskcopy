@@ -117,37 +117,18 @@ pub fn flash(
     // Route by effective mode / image type
     let result = match effective_mode {
         FlashMode::WindowsDualPartition => {
-            crate::windows_iso::flash_windows_iso(
-                &source.input,
-                &raw_target,
-                &opts,
-                cb,
-            )?
+            crate::windows_iso::flash_windows_iso(&source.input, &raw_target, &opts, cb)?
         }
         FlashMode::WindowsNtfs => {
-            crate::windows_iso::flash_windows_ntfs(
-                &source.input,
-                &raw_target,
-                &opts,
-                cb,
-            )?
+            crate::windows_iso::flash_windows_ntfs(&source.input, &raw_target, &opts, cb)?
         }
         FlashMode::ExtractedFile => {
-            crate::linux_iso::flash_linux_extracted(
-                &source.input,
-                &raw_target,
-                &opts,
-                cb,
-            )?
+            crate::linux_iso::flash_linux_extracted(&source.input, &raw_target, &opts, cb)?
         }
         FlashMode::MacosCreateInstallMedia => {
             #[cfg(target_os = "macos")]
             {
-                crate::macos_installer::flash_macos_installer(
-                    &source.input,
-                    &raw_target,
-                    cb,
-                )?
+                crate::macos_installer::flash_macos_installer(&source.input, &raw_target, cb)?
             }
             #[cfg(not(target_os = "macos"))]
             {
@@ -156,31 +137,29 @@ pub fn flash(
                 ));
             }
         }
-        FlashMode::RawWrite => {
-            match image_type.raw {
-                RawImageType::AppleDmg | RawImageType::MacosInstallerDmg
-                    if source.kind == SourceKind::LocalFile =>
-                {
-                    crate::dmg::restore_dmg(&source, &raw_target, &opts, cb)?
-                }
-                RawImageType::VhdFixed | RawImageType::VhdDynamic => {
-                    let reader = crate::vhd::open_vhd_reader(&source.input)
-                        .map_err(|e| FlashError::User(format!("VHD error: {e}")))?;
-                    write_stream_reader(reader, None, &raw_target, &opts, cb)?
-                }
-                RawImageType::Vhdx => {
-                    let reader = crate::vhd::open_vhdx_reader(&source.input)
-                        .map_err(|e| FlashError::User(format!("VHDX error: {e}")))?;
-                    write_stream_reader(reader, None, &raw_target, &opts, cb)?
-                }
-                RawImageType::Ffu => {
-                    let reader = crate::vhd::open_ffu_reader(&source.input)
-                        .map_err(|e| FlashError::User(format!("FFU error: {e}")))?;
-                    write_stream_reader(reader, None, &raw_target, &opts, cb)?
-                }
-                _ => write_stream(&source, &raw_target, &opts, cb)?,
+        FlashMode::RawWrite => match image_type.raw {
+            RawImageType::AppleDmg | RawImageType::MacosInstallerDmg
+                if source.kind == SourceKind::LocalFile =>
+            {
+                crate::dmg::restore_dmg(&source, &raw_target, &opts, cb)?
             }
-        }
+            RawImageType::VhdFixed | RawImageType::VhdDynamic => {
+                let reader = crate::vhd::open_vhd_reader(&source.input)
+                    .map_err(|e| FlashError::User(format!("VHD error: {e}")))?;
+                write_stream_reader(reader, None, &raw_target, &opts, cb)?
+            }
+            RawImageType::Vhdx => {
+                let reader = crate::vhd::open_vhdx_reader(&source.input)
+                    .map_err(|e| FlashError::User(format!("VHDX error: {e}")))?;
+                write_stream_reader(reader, None, &raw_target, &opts, cb)?
+            }
+            RawImageType::Ffu => {
+                let reader = crate::vhd::open_ffu_reader(&source.input)
+                    .map_err(|e| FlashError::User(format!("FFU error: {e}")))?;
+                write_stream_reader(reader, None, &raw_target, &opts, cb)?
+            }
+            _ => write_stream(&source, &raw_target, &opts, cb)?,
+        },
     };
 
     // Verification (only for raw write paths that have a known source)
@@ -194,17 +173,24 @@ pub fn flash(
         match verify_mode {
             VerifyMode::ByteByByte => {
                 let src_path = &source.input;
-                verify_image(src_path, &raw_target, opts.block_size, VerifyMode::ByteByByte, cb)
-                    .map_err(FlashError::Verify)?;
+                verify_image(
+                    src_path,
+                    &raw_target,
+                    opts.block_size,
+                    VerifyMode::ByteByByte,
+                    cb,
+                )
+                .map_err(FlashError::Verify)?;
             }
             VerifyMode::Sha256 => {
                 let device_hash =
-                    crate::hash::compute_hash_prefix(&raw_target, result.bytes_written)
-                        .map_err(|e| {
+                    crate::hash::compute_hash_prefix(&raw_target, result.bytes_written).map_err(
+                        |e| {
                             FlashError::Verify(VerifyError::Io(format!(
                                 "Could not hash target device: {e}"
                             )))
-                        })?;
+                        },
+                    )?;
                 if device_hash != result.sha256 {
                     return Err(FlashError::Verify(VerifyError::HashMismatch {
                         source: result.sha256.clone(),
@@ -319,9 +305,9 @@ pub(crate) fn write_stream_reader(
     let start = Instant::now();
 
     loop {
-        let n = reader.read(&mut buf).map_err(|e| {
-            FlashError::User(format!("Failed reading source during write: {e}"))
-        })?;
+        let n = reader
+            .read(&mut buf)
+            .map_err(|e| FlashError::User(format!("Failed reading source during write: {e}")))?;
         if n == 0 {
             break;
         }
@@ -361,9 +347,8 @@ pub(crate) fn write_stream_reader(
         });
     }
 
-    dst.sync_all().map_err(|e| {
-        FlashError::User(format!("Failed to flush writes to target device: {e}"))
-    })?;
+    dst.sync_all()
+        .map_err(|e| FlashError::User(format!("Failed to flush writes to target device: {e}")))?;
 
     let sha256 = format!("{:x}", hasher.finalize());
     Ok(FlashResult {

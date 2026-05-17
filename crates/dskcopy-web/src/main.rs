@@ -39,10 +39,13 @@ async fn main() {
     }
 
     let repo = std::env::var("DSKCOPY_REPO").unwrap_or_else(|_| REPO_DEFAULT.to_string());
-    let version =
-        std::env::var("DSKCOPY_VERSION").unwrap_or_else(|_| VERSION_DEFAULT.to_string());
+    let version = std::env::var("DSKCOPY_VERSION").unwrap_or_else(|_| VERSION_DEFAULT.to_string());
 
-    let state = Arc::new(AppState { tera, repo, version });
+    let state = Arc::new(AppState {
+        tera,
+        repo,
+        version,
+    });
 
     let app = Router::new()
         .route("/", get(index))

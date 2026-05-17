@@ -92,7 +92,13 @@ pub fn add_persistence_partition(
     }
 
     gdisk
-        .add_partition("persistence", persist_sectors, gpt::partition_types::LINUX_FS, 0, None)
+        .add_partition(
+            "persistence",
+            persist_sectors,
+            gpt::partition_types::LINUX_FS,
+            0,
+            None,
+        )
         .map_err(|e| PersistError::Io(format!("Cannot add persistence partition: {e}")))?;
 
     gdisk

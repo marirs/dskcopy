@@ -6,7 +6,6 @@
 ///   - Block types: raw/copy (0x00000002), zlib (0x80000005), bzip2 (0x80000006),
 ///     ignore/free (0x00000000), comment (0x7FFFFFFE), end (0xFFFFFFFF)
 ///   - Streams decompressed blocks directly to the target device
-
 use crate::image::{FlashError, FlashResult};
 use crate::source::SourceDescriptor;
 use crate::{FlashOptions, ProgressInfo, Stage};
@@ -76,9 +75,8 @@ pub fn restore_dmg(
                         let zero_bytes = block.sector_count * SECTOR_SIZE;
                         let zero_buf = vec![0u8; zero_bytes as usize];
                         let write_offset = (sector_base + block.sector_number) * SECTOR_SIZE;
-                        dst.seek(SeekFrom::Start(write_offset)).map_err(|e| {
-                            FlashError::User(format!("Seek failed: {}", e))
-                        })?;
+                        dst.seek(SeekFrom::Start(write_offset))
+                            .map_err(|e| FlashError::User(format!("Seek failed: {}", e)))?;
                         dst.write_all(&zero_buf).map_err(|e| {
                             FlashError::User(format!("Write zero block failed: {}", e))
                         })?;
@@ -88,18 +86,13 @@ pub fn restore_dmg(
                     continue;
                 }
                 BLOCK_TYPE_RAW => {
-                    let data = read_dmg_bytes(
-                        &mut dmg,
-                        block.compressed_offset,
-                        block.compressed_length,
-                    )?;
+                    let data =
+                        read_dmg_bytes(&mut dmg, block.compressed_offset, block.compressed_length)?;
                     let write_offset = (sector_base + block.sector_number) * SECTOR_SIZE;
-                    dst.seek(SeekFrom::Start(write_offset)).map_err(|e| {
-                        FlashError::User(format!("Seek failed: {}", e))
-                    })?;
-                    dst.write_all(&data).map_err(|e| {
-                        FlashError::User(format!("Write raw block failed: {}", e))
-                    })?;
+                    dst.seek(SeekFrom::Start(write_offset))
+                        .map_err(|e| FlashError::User(format!("Seek failed: {}", e)))?;
+                    dst.write_all(&data)
+                        .map_err(|e| FlashError::User(format!("Write raw block failed: {}", e)))?;
                     hasher.update(&data);
                     written_bytes += data.len() as u64;
                 }
@@ -108,12 +101,10 @@ pub fn restore_dmg(
                         read_dmg_bytes(&mut dmg, block.compressed_offset, block.compressed_length)?;
                     let decompressed = decompress_zlib(&compressed)?;
                     let write_offset = (sector_base + block.sector_number) * SECTOR_SIZE;
-                    dst.seek(SeekFrom::Start(write_offset)).map_err(|e| {
-                        FlashError::User(format!("Seek failed: {}", e))
-                    })?;
-                    dst.write_all(&decompressed).map_err(|e| {
-                        FlashError::User(format!("Write zlib block failed: {}", e))
-                    })?;
+                    dst.seek(SeekFrom::Start(write_offset))
+                        .map_err(|e| FlashError::User(format!("Seek failed: {}", e)))?;
+                    dst.write_all(&decompressed)
+                        .map_err(|e| FlashError::User(format!("Write zlib block failed: {}", e)))?;
                     hasher.update(&decompressed);
                     written_bytes += decompressed.len() as u64;
                 }
@@ -122,9 +113,8 @@ pub fn restore_dmg(
                         read_dmg_bytes(&mut dmg, block.compressed_offset, block.compressed_length)?;
                     let decompressed = decompress_bzip2(&compressed)?;
                     let write_offset = (sector_base + block.sector_number) * SECTOR_SIZE;
-                    dst.seek(SeekFrom::Start(write_offset)).map_err(|e| {
-                        FlashError::User(format!("Seek failed: {}", e))
-                    })?;
+                    dst.seek(SeekFrom::Start(write_offset))
+                        .map_err(|e| FlashError::User(format!("Seek failed: {}", e)))?;
                     dst.write_all(&decompressed).map_err(|e| {
                         FlashError::User(format!("Write bzip2 block failed: {}", e))
                     })?;
@@ -162,9 +152,8 @@ pub fn restore_dmg(
         }
     }
 
-    dst.sync_all().map_err(|e| {
-        FlashError::User(format!("Failed to flush DMG write: {}", e))
-    })?;
+    dst.sync_all()
+        .map_err(|e| FlashError::User(format!("Failed to flush DMG write: {}", e)))?;
 
     let sha256 = format!("{:x}", hasher.finalize());
     Ok(FlashResult {
@@ -184,20 +173,18 @@ struct KolyBlock {
 }
 
 fn read_koly(f: &mut File) -> Result<KolyBlock, FlashError> {
-    let meta = f.metadata().map_err(|e| {
-        FlashError::User(format!("Cannot stat DMG file: {}", e))
-    })?;
+    let meta = f
+        .metadata()
+        .map_err(|e| FlashError::User(format!("Cannot stat DMG file: {}", e)))?;
     let len = meta.len();
     if len < KOLY_SIZE {
         return Err(FlashError::User("File too small to be a DMG.".to_string()));
     }
-    f.seek(SeekFrom::Start(len - KOLY_SIZE)).map_err(|e| {
-        FlashError::User(format!("Cannot seek to koly trailer: {}", e))
-    })?;
+    f.seek(SeekFrom::Start(len - KOLY_SIZE))
+        .map_err(|e| FlashError::User(format!("Cannot seek to koly trailer: {}", e)))?;
     let mut buf = vec![0u8; KOLY_SIZE as usize];
-    f.read_exact(&mut buf).map_err(|e| {
-        FlashError::User(format!("Cannot read koly trailer: {}", e))
-    })?;
+    f.read_exact(&mut buf)
+        .map_err(|e| FlashError::User(format!("Cannot read koly trailer: {}", e)))?;
 
     let magic = u32::from_be_bytes([buf[0], buf[1], buf[2], buf[3]]);
     if magic != KOLY_MAGIC {
@@ -209,12 +196,10 @@ fn read_koly(f: &mut File) -> Result<KolyBlock, FlashError> {
     let version = u32::from_be_bytes([buf[4], buf[5], buf[6], buf[7]]);
     // xml_offset @ 0xD8 = 216, xml_length @ 0xE0 = 224
     let xml_offset = u64::from_be_bytes([
-        buf[216], buf[217], buf[218], buf[219],
-        buf[220], buf[221], buf[222], buf[223],
+        buf[216], buf[217], buf[218], buf[219], buf[220], buf[221], buf[222], buf[223],
     ]);
     let xml_length = u64::from_be_bytes([
-        buf[224], buf[225], buf[226], buf[227],
-        buf[228], buf[229], buf[230], buf[231],
+        buf[224], buf[225], buf[226], buf[227], buf[228], buf[229], buf[230], buf[231],
     ]);
 
     if xml_length == 0 || xml_length > 64 * 1024 * 1024 {
@@ -248,17 +233,14 @@ struct BlockDescriptor {
 }
 
 fn parse_resource_fork(f: &mut File, koly: &KolyBlock) -> Result<Vec<BlkxEntry>, FlashError> {
-    f.seek(SeekFrom::Start(koly.xml_offset)).map_err(|e| {
-        FlashError::User(format!("Cannot seek to XML resource fork: {}", e))
-    })?;
+    f.seek(SeekFrom::Start(koly.xml_offset))
+        .map_err(|e| FlashError::User(format!("Cannot seek to XML resource fork: {}", e)))?;
     let mut xml_buf = vec![0u8; koly.xml_length as usize];
-    f.read_exact(&mut xml_buf).map_err(|e| {
-        FlashError::User(format!("Cannot read XML resource fork: {}", e))
-    })?;
+    f.read_exact(&mut xml_buf)
+        .map_err(|e| FlashError::User(format!("Cannot read XML resource fork: {}", e)))?;
 
-    let value = plist::Value::from_reader_xml(std::io::Cursor::new(&xml_buf)).map_err(|e| {
-        FlashError::User(format!("Cannot parse DMG XML resource fork: {}", e))
-    })?;
+    let value = plist::Value::from_reader_xml(std::io::Cursor::new(&xml_buf))
+        .map_err(|e| FlashError::User(format!("Cannot parse DMG XML resource fork: {}", e)))?;
 
     let root = value.as_dictionary().ok_or_else(|| {
         FlashError::User("DMG XML resource fork has unexpected structure.".to_string())
@@ -341,7 +323,10 @@ fn parse_mish(data: &[u8]) -> Option<BlkxEntry> {
         });
     }
 
-    Some(BlkxEntry { sector_offset, blocks })
+    Some(BlkxEntry {
+        sector_offset,
+        blocks,
+    })
 }
 
 // ── I/O helpers ───────────────────────────────────────────────────────────────
@@ -350,12 +335,14 @@ fn read_dmg_bytes(f: &mut File, offset: u64, length: u64) -> Result<Vec<u8>, Fla
     if length == 0 {
         return Ok(Vec::new());
     }
-    f.seek(SeekFrom::Start(offset)).map_err(|e| {
-        FlashError::User(format!("DMG seek failed at offset {}: {}", offset, e))
-    })?;
+    f.seek(SeekFrom::Start(offset))
+        .map_err(|e| FlashError::User(format!("DMG seek failed at offset {}: {}", offset, e)))?;
     let mut buf = vec![0u8; length as usize];
     f.read_exact(&mut buf).map_err(|e| {
-        FlashError::User(format!("DMG read failed ({} bytes at {}): {}", length, offset, e))
+        FlashError::User(format!(
+            "DMG read failed ({} bytes at {}): {}",
+            length, offset, e
+        ))
     })?;
     Ok(buf)
 }

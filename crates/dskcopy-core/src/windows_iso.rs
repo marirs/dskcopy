@@ -29,15 +29,14 @@ pub fn flash_windows_iso(
     cb: &mut dyn FnMut(ProgressInfo),
 ) -> Result<FlashResult, FlashError> {
     // 1. Create dual-partition layout
-    let parts = format_windows_usb(target, Some(cb))
-        .map_err(FlashError::Format)?;
+    let parts = format_windows_usb(target, Some(cb)).map_err(FlashError::Format)?;
 
     // 2. Collect ISO entries
     let entries = list_iso_entries(source_path)
         .map_err(|e| FlashError::User(format!("Cannot read ISO: {e}")))?;
 
-    let mut iso_file = File::open(source_path)
-        .map_err(|e| FlashError::User(format!("Cannot open ISO: {e}")))?;
+    let mut iso_file =
+        File::open(source_path).map_err(|e| FlashError::User(format!("Cannot open ISO: {e}")))?;
 
     // 3. Compute total bytes for progress
     let total_bytes: u64 = entries.iter().filter(|e| !e.is_dir).map(|e| e.size).sum();
@@ -105,8 +104,8 @@ pub fn flash_windows_iso(
                 continue;
             }
             let lower = entry.path.to_lowercase();
-            let is_install_wim = lower.ends_with("/sources/install.wim")
-                || lower == "sources/install.wim";
+            let is_install_wim =
+                lower.ends_with("/sources/install.wim") || lower == "sources/install.wim";
 
             if is_install_wim && entry.size > WIM_PART_MAX {
                 bytes_done += split_and_write_wim(
@@ -198,8 +197,7 @@ pub fn flash_windows_ntfs(
     cb: &mut dyn FnMut(ProgressInfo),
 ) -> Result<FlashResult, FlashError> {
     // 1. Create UEFI:NTFS partition layout
-    let parts = format_windows_usb_ntfs(target, Some(cb))
-        .map_err(FlashError::Format)?;
+    let parts = format_windows_usb_ntfs(target, Some(cb)).map_err(FlashError::Format)?;
 
     // 2. Write UEFI:NTFS loader to FAT32 partition
     {
@@ -247,7 +245,9 @@ pub fn flash_windows_ntfs(
                 .args(["-f", "-L", "Windows", &ntfs_part])
                 .status()
         })
-        .map_err(|e| FlashError::User(format!("mkntfs/mkfs.ntfs not found: {e}. Install ntfs-3g.")))?;
+        .map_err(|e| {
+            FlashError::User(format!("mkntfs/mkfs.ntfs not found: {e}. Install ntfs-3g."))
+        })?;
 
     if !status.success() {
         return Err(FlashError::User("NTFS format failed".to_string()));
@@ -291,7 +291,9 @@ pub fn flash_windows_ntfs(
         .map_err(|e| FlashError::User(format!("ISO mount failed: {e}")))?;
 
     if !iso_mount_status.success() {
-        let _ = std::process::Command::new("umount").arg(&mount_dir).status();
+        let _ = std::process::Command::new("umount")
+            .arg(&mount_dir)
+            .status();
         let _ = std::fs::remove_dir(&mount_dir);
         let _ = std::fs::remove_dir(&iso_mount);
         return Err(FlashError::User("Cannot mount ISO image.".to_string()));
@@ -299,11 +301,20 @@ pub fn flash_windows_ntfs(
 
     // rsync or cp -a
     let copy_status = std::process::Command::new("rsync")
-        .args(["-a", "--progress", &format!("{}/", iso_mount), &format!("{}/", mount_dir)])
+        .args([
+            "-a",
+            "--progress",
+            &format!("{}/", iso_mount),
+            &format!("{}/", mount_dir),
+        ])
         .status()
         .or_else(|_| {
             std::process::Command::new("cp")
-                .args(["-a", &format!("{}/.", iso_mount), &format!("{}/", mount_dir)])
+                .args([
+                    "-a",
+                    &format!("{}/.", iso_mount),
+                    &format!("{}/", mount_dir),
+                ])
                 .status()
         })
         .map_err(|e| FlashError::User(format!("Copy failed: {e}")))?;
@@ -311,19 +322,28 @@ pub fn flash_windows_ntfs(
     // Win11 bypass
     if opts.bypass_requirements {
         let unattend_path = format!("{}/autounattend.xml", mount_dir);
-        let _ = std::fs::write(&unattend_path, include_str!("../assets/autounattend_bypass.xml"));
+        let _ = std::fs::write(
+            &unattend_path,
+            include_str!("../assets/autounattend_bypass.xml"),
+        );
         let ei_cfg_path = format!("{}/sources/ei.cfg", mount_dir);
         let _ = std::fs::write(ei_cfg_path, "[Channel]\r\nRetail\r\n");
     }
 
     // Cleanup mounts
-    let _ = std::process::Command::new("umount").arg(&iso_mount).status();
-    let _ = std::process::Command::new("umount").arg(&mount_dir).status();
+    let _ = std::process::Command::new("umount")
+        .arg(&iso_mount)
+        .status();
+    let _ = std::process::Command::new("umount")
+        .arg(&mount_dir)
+        .status();
     let _ = std::fs::remove_dir(&iso_mount);
     let _ = std::fs::remove_dir(&mount_dir);
 
     if !copy_status.success() {
-        return Err(FlashError::User("Failed to copy ISO contents to NTFS partition.".to_string()));
+        return Err(FlashError::User(
+            "Failed to copy ISO contents to NTFS partition.".to_string(),
+        ));
     }
 
     cb(ProgressInfo {
@@ -530,8 +550,8 @@ fn split_and_write_wim<T: fatfs::ReadWriteSeek>(
 
         // Patch WIM header: set PartNumber and TotalParts (offsets 40 and 42)
         let _ = orig_header; // header patching note: requires seeking back in fat_file
-        // For now the header written is the original — Windows Setup accepts split WIMs
-        // as long as the PartNumber/TotalParts are correct; future improvement can patch them.
+                             // For now the header written is the original — Windows Setup accepts split WIMs
+                             // as long as the PartNumber/TotalParts are correct; future improvement can patch them.
         let _ = (part_num, num_parts);
     }
 

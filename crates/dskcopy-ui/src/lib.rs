@@ -66,7 +66,9 @@ pub fn launch() -> Result<(), slint::PlatformError> {
     // Initial drive load
     {
         let backend = MacOsBackend;
-        let drives = backend.list_devices(&ListOptions { show_all: false }).unwrap_or_default();
+        let drives = backend
+            .list_devices(&ListOptions { show_all: false })
+            .unwrap_or_default();
         state.borrow_mut().drives = drives;
         refresh_ui(&app, &state.borrow());
     }
@@ -115,7 +117,9 @@ pub fn launch() -> Result<(), slint::PlatformError> {
             if let Some(path) = rfd::FileDialog::new()
                 .add_filter(
                     "Disk Images",
-                    &["iso", "img", "dmg", "raw", "gz", "xz", "zip", "bz2", "vhd", "vhdx", "ffu"],
+                    &[
+                        "iso", "img", "dmg", "raw", "gz", "xz", "zip", "bz2", "vhd", "vhdx", "ffu",
+                    ],
                 )
                 .add_filter("All Files", &["*"])
                 .pick_file()
@@ -371,9 +375,7 @@ fn refresh_ui(app: &AppWindow, state: &UiState) {
     if state.has_selected {
         if let Some(d) = state.drives.get(state.selected) {
             let gib = d.size_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
-            app.set_target_info(
-                format!("{}  {}  ({:.2} GiB)", d.id, d.name, gib).into(),
-            );
+            app.set_target_info(format!("{}  {}  ({:.2} GiB)", d.id, d.name, gib).into());
         } else {
             app.set_target_info("".into());
         }

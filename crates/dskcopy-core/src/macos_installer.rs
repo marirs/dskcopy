@@ -115,7 +115,8 @@ pub fn flash_macos_installer(
         .map_err(|e| FlashError::User(format!("createinstallmedia wait failed: {e}")))?;
     if !status.success() {
         return Err(FlashError::User(
-            "createinstallmedia exited with an error. Check that you have admin privileges.".to_string(),
+            "createinstallmedia exited with an error. Check that you have admin privileges."
+                .to_string(),
         ));
     }
 
@@ -178,8 +179,7 @@ fn find_createinstallmedia_in(mount_point: &str) -> Option<String> {
     let pattern = format!("{}/Install macOS*", mount_point);
     let paths = glob::glob(&pattern).ok()?;
     for entry in paths.flatten() {
-        let cim = entry
-            .join("Contents/Resources/createinstallmedia");
+        let cim = entry.join("Contents/Resources/createinstallmedia");
         if cim.exists() {
             return Some(cim.to_string_lossy().to_string());
         }
@@ -225,10 +225,6 @@ struct DmgUnmountGuard(String);
 #[cfg(target_os = "macos")]
 impl Drop for DmgUnmountGuard {
     fn drop(&mut self) {
-        let _ = Command::new("hdiutil")
-            .args(["detach", &self.0])
-            .status();
+        let _ = Command::new("hdiutil").args(["detach", &self.0]).status();
     }
 }
-
-

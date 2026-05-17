@@ -214,7 +214,9 @@ fn format_gpt_single(device: &str, fs: FilesystemType) -> Result<(), FormatError
     let end_lba: u64 = (disk_size / sector_size).saturating_sub(34);
 
     if end_lba <= start_lba {
-        return Err(FormatError::Io("Device too small to partition.".to_string()));
+        return Err(FormatError::Io(
+            "Device too small to partition.".to_string(),
+        ));
     }
 
     let mut gdisk = gpt::GptConfig::new()
@@ -241,7 +243,10 @@ fn format_gpt_single(device: &str, fs: FilesystemType) -> Result<(), FormatError
         FilesystemType::Ntfs => "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7"
             .parse::<gpt::partition_types::Type>()
             .map_err(|e| FormatError::Io(format!("Invalid NTFS partition type GUID: {}", e)))?,
-        FilesystemType::Ext2 | FilesystemType::Ext3 | FilesystemType::Ext4 | FilesystemType::None => gpt::partition_types::LINUX_FS,
+        FilesystemType::Ext2
+        | FilesystemType::Ext3
+        | FilesystemType::Ext4
+        | FilesystemType::None => gpt::partition_types::LINUX_FS,
     };
 
     gdisk
@@ -489,10 +494,10 @@ fn format_ext4(device: &str, _part_offset: u64) -> Result<(), FormatError> {
 pub struct UefiNtfsPartitions {
     /// Tiny FAT32 partition that holds BOOTX64.EFI (UEFI:NTFS loader)
     pub fat_offset: u64,
-    pub fat_size:   u64,
+    pub fat_size: u64,
     /// Large NTFS partition that holds the full Windows installer contents
     pub ntfs_offset: u64,
-    pub ntfs_size:   u64,
+    pub ntfs_size: u64,
 }
 
 /// Create GPT with a 1 MiB FAT32 UEFI:NTFS loader partition followed by a
@@ -526,11 +531,11 @@ pub fn format_windows_usb_ntfs(
 
     let sector_size: u64 = 512;
     // FAT32 UEFI-NTFS loader: 1 MiB
-    let fat_lba_start:  u64 = 2048;
-    let fat_sectors:    u64 = (1 * 1024 * 1024) / sector_size;
-    let fat_lba_end:    u64 = fat_lba_start + fat_sectors;
+    let fat_lba_start: u64 = 2048;
+    let fat_sectors: u64 = (1 * 1024 * 1024) / sector_size;
+    let fat_lba_end: u64 = fat_lba_start + fat_sectors;
     let ntfs_lba_start: u64 = fat_lba_end + 1;
-    let ntfs_lba_end:   u64 = (disk_size / sector_size).saturating_sub(34);
+    let ntfs_lba_end: u64 = (disk_size / sector_size).saturating_sub(34);
 
     if ntfs_lba_start >= ntfs_lba_end {
         return Err(FormatError::Io(
@@ -577,7 +582,7 @@ pub fn format_windows_usb_ntfs(
 
     // Format the FAT32 loader partition
     let fat_offset = fat_lba_start * sector_size;
-    let fat_size   = fat_sectors * sector_size;
+    let fat_size = fat_sectors * sector_size;
     {
         let mut dev = std::fs::OpenOptions::new()
             .read(true)
@@ -595,7 +600,7 @@ pub fn format_windows_usb_ntfs(
     }
 
     let ntfs_offset = ntfs_lba_start * sector_size;
-    let ntfs_size   = (ntfs_lba_end - ntfs_lba_start) * sector_size;
+    let ntfs_size = (ntfs_lba_end - ntfs_lba_start) * sector_size;
 
     Ok(UefiNtfsPartitions {
         fat_offset,
@@ -616,7 +621,12 @@ pub struct PartitionSlice<'a> {
 
 impl<'a> PartitionSlice<'a> {
     pub fn new(dev: &'a mut std::fs::File, offset: u64, size: u64) -> Self {
-        PartitionSlice { dev, offset, size, pos: 0 }
+        PartitionSlice {
+            dev,
+            offset,
+            size,
+            pos: 0,
+        }
     }
 
     fn abs_pos(&self) -> u64 {

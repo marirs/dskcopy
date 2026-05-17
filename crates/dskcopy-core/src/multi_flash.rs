@@ -136,18 +136,34 @@ fn flash_single_target(
             let mut reader = std::io::Cursor::new(data);
             let mut buf = vec![0u8; block_size];
             loop {
-                let n = reader.read(&mut buf).map_err(|e| FlashError::User(e.to_string()))?;
-                if n == 0 { break; }
+                let n = reader
+                    .read(&mut buf)
+                    .map_err(|e| FlashError::User(e.to_string()))?;
+                if n == 0 {
+                    break;
+                }
                 hasher.update(&buf[..n]);
-                dst.write_all(&buf[..n]).map_err(|e| FlashError::User(format!("Write error: {e}")))?;
+                dst.write_all(&buf[..n])
+                    .map_err(|e| FlashError::User(format!("Write error: {e}")))?;
                 written += n as u64;
 
                 let elapsed = start.elapsed().as_secs_f64().max(0.001);
                 let percent = if total > 0 {
                     (written as f64 / total as f64 * 100.0).min(100.0)
-                } else { 0.0 };
+                } else {
+                    0.0
+                };
                 let _mbps = (written as f64 / 1_048_576.0) / elapsed;
-                update_progress(progress_state, idx, &raw_target, Stage::Writing, written, total, percent, cb);
+                update_progress(
+                    progress_state,
+                    idx,
+                    &raw_target,
+                    Stage::Writing,
+                    written,
+                    total,
+                    percent,
+                    cb,
+                );
             }
         }
         None => {
@@ -157,25 +173,51 @@ fn flash_single_target(
             let total2 = size_hint.unwrap_or(0);
             let mut buf = vec![0u8; block_size];
             loop {
-                let n = reader.read(&mut buf).map_err(|e| FlashError::User(format!("Read error: {e}")))?;
-                if n == 0 { break; }
+                let n = reader
+                    .read(&mut buf)
+                    .map_err(|e| FlashError::User(format!("Read error: {e}")))?;
+                if n == 0 {
+                    break;
+                }
                 hasher.update(&buf[..n]);
-                dst.write_all(&buf[..n]).map_err(|e| FlashError::User(format!("Write error: {e}")))?;
+                dst.write_all(&buf[..n])
+                    .map_err(|e| FlashError::User(format!("Write error: {e}")))?;
                 written += n as u64;
 
                 let _elapsed = start.elapsed().as_secs_f64().max(0.001);
                 let percent = if total2 > 0 {
                     (written as f64 / total2 as f64 * 100.0).min(100.0)
-                } else { 0.0 };
-                update_progress(progress_state, idx, &raw_target, Stage::Writing, written, total2, percent, cb);
+                } else {
+                    0.0
+                };
+                update_progress(
+                    progress_state,
+                    idx,
+                    &raw_target,
+                    Stage::Writing,
+                    written,
+                    total2,
+                    percent,
+                    cb,
+                );
             }
         }
     }
 
-    dst.sync_all().map_err(|e| FlashError::User(format!("Sync error: {e}")))?;
+    dst.sync_all()
+        .map_err(|e| FlashError::User(format!("Sync error: {e}")))?;
     let sha256 = format!("{:x}", hasher.finalize());
 
-    update_progress(progress_state, idx, &raw_target, Stage::Done, written, written, 100.0, cb);
+    update_progress(
+        progress_state,
+        idx,
+        &raw_target,
+        Stage::Done,
+        written,
+        written,
+        100.0,
+        cb,
+    );
 
     Ok(FlashResult {
         bytes_written: written,

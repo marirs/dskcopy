@@ -18,8 +18,8 @@ impl PlatformBackend for LinuxBackend {
             );
         }
 
-        let entries = fs::read_dir(sys_block)
-            .map_err(|e| format!("Cannot read /sys/block: {}", e))?;
+        let entries =
+            fs::read_dir(sys_block).map_err(|e| format!("Cannot read /sys/block: {}", e))?;
 
         for entry in entries.flatten() {
             let dev_name = entry.file_name().to_string_lossy().to_string();
@@ -39,10 +39,7 @@ impl PlatformBackend for LinuxBackend {
             let is_usb = detect_usb(&sys_path);
 
             // Determine if system / boot drive
-            let is_boot = boot_dev
-                .as_deref()
-                .map(|b| b == dev_path)
-                .unwrap_or(false);
+            let is_boot = boot_dev.as_deref().map(|b| b == dev_path).unwrap_or(false);
             let is_system = !removable || !is_usb || is_boot;
 
             if !opts.show_all {
@@ -57,15 +54,19 @@ impl PlatformBackend for LinuxBackend {
             let size_blocks = read_sys_u64(&sys_path.join("size")).unwrap_or(0);
             let size_bytes = size_blocks * 512;
 
-            let name = read_sys_str(&sys_path.join("device/model"))
-                .unwrap_or_else(|| dev_name.clone());
+            let name =
+                read_sys_str(&sys_path.join("device/model")).unwrap_or_else(|| dev_name.clone());
 
             out.push(DeviceInfo {
                 id: dev_path.clone(),
                 name: name.trim().to_string(),
                 size_bytes,
                 removable,
-                bus: if is_usb { "USB".to_string() } else { "Unknown".to_string() },
+                bus: if is_usb {
+                    "USB".to_string()
+                } else {
+                    "Unknown".to_string()
+                },
                 raw_device: Some(dev_path.clone()),
                 is_system_drive: is_system,
             });

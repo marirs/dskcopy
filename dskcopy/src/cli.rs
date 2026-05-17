@@ -154,22 +154,22 @@ fn map_fs(f: FsArg) -> FilesystemType {
     match f {
         FsArg::Fat32 => FilesystemType::Fat32,
         FsArg::ExFat => FilesystemType::ExFat,
-        FsArg::Ntfs  => FilesystemType::Ntfs,
-        FsArg::Ext2  => FilesystemType::Ext2,
-        FsArg::Ext3  => FilesystemType::Ext3,
-        FsArg::Ext4  => FilesystemType::Ext4,
-        FsArg::None  => FilesystemType::None,
+        FsArg::Ntfs => FilesystemType::Ntfs,
+        FsArg::Ext2 => FilesystemType::Ext2,
+        FsArg::Ext3 => FilesystemType::Ext3,
+        FsArg::Ext4 => FilesystemType::Ext4,
+        FsArg::None => FilesystemType::None,
     }
 }
 
 fn map_flash_mode(m: Option<FlashModeArg>) -> FlashMode {
     match m {
-        None                                 => FlashMode::RawWrite,
-        Some(FlashModeArg::Raw)              => FlashMode::RawWrite,
-        Some(FlashModeArg::Extracted)        => FlashMode::ExtractedFile,
-        Some(FlashModeArg::Windows)          => FlashMode::WindowsDualPartition,
-        Some(FlashModeArg::WindowsNtfs)      => FlashMode::WindowsNtfs,
-        Some(FlashModeArg::MacosInstaller)   => FlashMode::MacosCreateInstallMedia,
+        None => FlashMode::RawWrite,
+        Some(FlashModeArg::Raw) => FlashMode::RawWrite,
+        Some(FlashModeArg::Extracted) => FlashMode::ExtractedFile,
+        Some(FlashModeArg::Windows) => FlashMode::WindowsDualPartition,
+        Some(FlashModeArg::WindowsNtfs) => FlashMode::WindowsNtfs,
+        Some(FlashModeArg::MacosInstaller) => FlashMode::MacosCreateInstallMedia,
     }
 }
 
@@ -241,7 +241,9 @@ fn do_flash(
     println!("Targets: {}", targets.join(", "));
 
     if bypass_requirements {
-        println!("NOTE: Windows 11 hardware requirement bypass enabled (autounattend.xml injection).");
+        println!(
+            "NOTE: Windows 11 hardware requirement bypass enabled (autounattend.xml injection)."
+        );
     }
 
     let opts = FlashOptions {
@@ -296,11 +298,9 @@ fn do_flash(
             .map(|t| {
                 let pb = mp.add(ProgressBar::new(100));
                 pb.set_style(
-                    ProgressStyle::with_template(
-                        "{msg:30} [{bar:30.cyan/blue}] {pos:>3}%",
-                    )
-                    .unwrap()
-                    .progress_chars("=>-"),
+                    ProgressStyle::with_template("{msg:30} [{bar:30.cyan/blue}] {pos:>3}%")
+                        .unwrap()
+                        .progress_chars("=>-"),
                 );
                 pb.set_message(format!("{}: waiting", t));
                 pb
@@ -313,7 +313,10 @@ fn do_flash(
 
         let results = flash_multi(source_input, &targets, opts, move |progresses| {
             for tp in &progresses {
-                if let Some(idx) = target_list.iter().position(|t| *t == tp.device || normalize_target_device(t) == tp.device) {
+                if let Some(idx) = target_list
+                    .iter()
+                    .position(|t| *t == tp.device || normalize_target_device(t) == tp.device)
+                {
                     let pos = tp.info.percent.clamp(0.0, 100.0).round() as u64;
                     bars2[idx].set_position(pos);
                     if let Some(ref err) = tp.error {
@@ -334,10 +337,7 @@ fn do_flash(
             match result {
                 Ok(r) => {
                     bars[i].finish_with_message(format!("{}: Done", targets[i]));
-                    println!(
-                        "[OK] {} -> {} bytes written",
-                        targets[i], r.bytes_written
-                    );
+                    println!("[OK] {} -> {} bytes written", targets[i], r.bytes_written);
                 }
                 Err(e) => {
                     bars[i].abandon_with_message(format!("{}: FAILED", targets[i]));
@@ -391,7 +391,11 @@ fn do_check(target: &str, quick: bool) -> Result<(), String> {
         }
     }
 
-    let mode_str = if quick { "quick read-only" } else { "full read-write" };
+    let mode_str = if quick {
+        "quick read-only"
+    } else {
+        "full read-write"
+    };
     println!("Starting {} check on {}...", mode_str, raw_target);
 
     let pb = ProgressBar::new(100);
@@ -409,8 +413,7 @@ fn do_check(target: &str, quick: bool) -> Result<(), String> {
         pb.set_position(pos);
     };
 
-    let result =
-        check_drive(&raw_target, quick, &mut progress).map_err(|e| e.to_string())?;
+    let result = check_drive(&raw_target, quick, &mut progress).map_err(|e| e.to_string())?;
 
     pb.finish_with_message("Check complete");
     println!();
@@ -429,7 +432,11 @@ fn do_check(target: &str, quick: bool) -> Result<(), String> {
         println!(
             "  First bad sectors   : {:?}{}",
             show,
-            if result.bad_sectors.len() > 10 { " ..." } else { "" }
+            if result.bad_sectors.len() > 10 {
+                " ..."
+            } else {
+                ""
+            }
         );
     }
     if result.is_fake {
@@ -461,12 +468,19 @@ fn do_download(
         "Specify --version <slug> or use --list to see available versions.".to_string()
     })?;
 
-    let entry = download::find_entry(&version_slug)
-        .ok_or_else(|| format!("Unknown version '{}'. Use --list to see available versions.", version_slug))?;
+    let entry = download::find_entry(&version_slug).ok_or_else(|| {
+        format!(
+            "Unknown version '{}'. Use --list to see available versions.",
+            version_slug
+        )
+    })?;
 
     let url = download::get_windows_download_page(entry);
     println!("Microsoft no longer supports automated ISO downloads.");
-    println!("Open the following page in a browser to download {}:", entry.name);
+    println!(
+        "Open the following page in a browser to download {}:",
+        entry.name
+    );
     println!();
     println!("  {}", url);
     Ok(())
@@ -505,9 +519,12 @@ fn main() {
         ),
         Some(Commands::Format { target, scheme, fs }) => do_format(&target, scheme, fs),
         Some(Commands::Check { target, quick }) => do_check(&target, quick),
-        Some(Commands::Download { list, version, lang, output }) => {
-            do_download(list, version, lang, output)
-        }
+        Some(Commands::Download {
+            list,
+            version,
+            lang,
+            output,
+        }) => do_download(list, version, lang, output),
         None => {
             use clap::CommandFactory;
             Cli::command().print_help().ok();

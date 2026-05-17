@@ -31,10 +31,7 @@ impl std::fmt::Display for VhdError {
 /// - Dynamic VHD: BAT-driven sparse layout is stitched into a linear stream
 pub fn open_vhd_reader(path: &str) -> Result<Box<dyn Read + Send + 'static>, VhdError> {
     let mut f = File::open(path).map_err(|e| VhdError::Io(e.to_string()))?;
-    let file_size = f
-        .metadata()
-        .map_err(|e| VhdError::Io(e.to_string()))?
-        .len();
+    let file_size = f.metadata().map_err(|e| VhdError::Io(e.to_string()))?.len();
 
     if file_size < 512 {
         return Err(VhdError::InvalidFormat("File too small".into()));
@@ -53,8 +50,8 @@ pub fn open_vhd_reader(path: &str) -> Result<Box<dyn Read + Send + 'static>, Vhd
 
     let disk_type = u32::from_be_bytes([footer[60], footer[61], footer[62], footer[63]]);
     let disk_size = u64::from_be_bytes([
-        footer[40], footer[41], footer[42], footer[43],
-        footer[44], footer[45], footer[46], footer[47],
+        footer[40], footer[41], footer[42], footer[43], footer[44], footer[45], footer[46],
+        footer[47],
     ]);
 
     match disk_type {
@@ -101,14 +98,26 @@ fn open_dynamic_vhd(
     }
 
     let bat_offset = u64::from_be_bytes([
-        dyn_header[16], dyn_header[17], dyn_header[18], dyn_header[19],
-        dyn_header[20], dyn_header[21], dyn_header[22], dyn_header[23],
+        dyn_header[16],
+        dyn_header[17],
+        dyn_header[18],
+        dyn_header[19],
+        dyn_header[20],
+        dyn_header[21],
+        dyn_header[22],
+        dyn_header[23],
     ]);
     let max_bat_size = u32::from_be_bytes([
-        dyn_header[28], dyn_header[29], dyn_header[30], dyn_header[31],
+        dyn_header[28],
+        dyn_header[29],
+        dyn_header[30],
+        dyn_header[31],
     ]) as usize;
     let block_size = u32::from_be_bytes([
-        dyn_header[32], dyn_header[33], dyn_header[34], dyn_header[35],
+        dyn_header[32],
+        dyn_header[33],
+        dyn_header[34],
+        dyn_header[35],
     ]) as u64;
 
     // Read BAT
@@ -197,9 +206,12 @@ pub fn open_vhdx_reader(path: &str) -> Result<Box<dyn Read + Send + 'static>, Vh
 
     // ── 1. File identifier at byte 0 ─────────────────────────────────────────
     let mut sig = [0u8; 8];
-    f.read_exact(&mut sig).map_err(|e| VhdError::Io(e.to_string()))?;
+    f.read_exact(&mut sig)
+        .map_err(|e| VhdError::Io(e.to_string()))?;
     if &sig != b"vhdxfile" {
-        return Err(VhdError::InvalidFormat("Not a VHDX file (signature missing)".into()));
+        return Err(VhdError::InvalidFormat(
+            "Not a VHDX file (signature missing)".into(),
+        ));
     }
 
     // ── 2. Region table (first copy at 0x30000) ───────────────────────────────
@@ -247,19 +259,24 @@ fn guid_bytes(s: &str) -> [u8; 16] {
         .collect();
     let mut out = [0u8; 16];
     // Data1 (4 bytes) → swap to LE
-    out[0] = hex[3]; out[1] = hex[2]; out[2] = hex[1]; out[3] = hex[0];
+    out[0] = hex[3];
+    out[1] = hex[2];
+    out[2] = hex[1];
+    out[3] = hex[0];
     // Data2 (2 bytes) → swap to LE
-    out[4] = hex[5]; out[5] = hex[4];
+    out[4] = hex[5];
+    out[5] = hex[4];
     // Data3 (2 bytes) → swap to LE
-    out[6] = hex[7]; out[7] = hex[6];
+    out[6] = hex[7];
+    out[7] = hex[6];
     // Data4 (8 bytes) → as-is
     out[8..16].copy_from_slice(&hex[8..16]);
     out
 }
 
-const GUID_BAT: &str      = "2dc27766-f623-4200-9d64-115e9bfd4a08";
+const GUID_BAT: &str = "2dc27766-f623-4200-9d64-115e9bfd4a08";
 const GUID_METADATA: &str = "8b7ca206-4790-4b9a-b8fe-575f050f886e";
-const GUID_FILE_PARAMS:   &str = "caa16737-fa36-4d43-b3b6-33f0aa44e76b";
+const GUID_FILE_PARAMS: &str = "caa16737-fa36-4d43-b3b6-33f0aa44e76b";
 const GUID_VIRT_DISK_SIZE: &str = "2fa54224-cd1b-4876-b211-5be07a6efa2c";
 const GUID_LOGICAL_SECTOR: &str = "8141bf1d-a96f-4709-ba47-f233a8faab5f";
 
@@ -272,37 +289,43 @@ fn parse_vhdx_region_table(
         .map_err(|e| VhdError::Io(e.to_string()))?;
 
     let mut hdr = [0u8; 16];
-    f.read_exact(&mut hdr).map_err(|e| VhdError::Io(e.to_string()))?;
+    f.read_exact(&mut hdr)
+        .map_err(|e| VhdError::Io(e.to_string()))?;
 
     if &hdr[..4] != b"regi" {
-        return Err(VhdError::InvalidFormat("VHDX region table signature missing".into()));
+        return Err(VhdError::InvalidFormat(
+            "VHDX region table signature missing".into(),
+        ));
     }
     let entry_count = u32::from_le_bytes([hdr[8], hdr[9], hdr[10], hdr[11]]) as usize;
     if entry_count > 2048 {
-        return Err(VhdError::InvalidFormat("VHDX region table: too many entries".into()));
+        return Err(VhdError::InvalidFormat(
+            "VHDX region table: too many entries".into(),
+        ));
     }
 
-    let bat_guid   = guid_bytes(GUID_BAT);
-    let meta_guid  = guid_bytes(GUID_METADATA);
+    let bat_guid = guid_bytes(GUID_BAT);
+    let meta_guid = guid_bytes(GUID_METADATA);
 
-    let mut bat_offset:  u64 = 0;
-    let mut bat_len:     u64 = 0;
+    let mut bat_offset: u64 = 0;
+    let mut bat_len: u64 = 0;
     let mut meta_offset: u64 = 0;
-    let mut meta_len:    u64 = 0;
+    let mut meta_len: u64 = 0;
 
     for _ in 0..entry_count {
         let mut entry = [0u8; 32];
-        f.read_exact(&mut entry).map_err(|e| VhdError::Io(e.to_string()))?;
+        f.read_exact(&mut entry)
+            .map_err(|e| VhdError::Io(e.to_string()))?;
 
         let file_offset = u64::from_le_bytes(entry[16..24].try_into().unwrap());
-        let length      = u32::from_le_bytes(entry[24..28].try_into().unwrap()) as u64;
+        let length = u32::from_le_bytes(entry[24..28].try_into().unwrap()) as u64;
 
         if entry[..16] == bat_guid {
             bat_offset = file_offset;
-            bat_len    = length;
+            bat_len = length;
         } else if entry[..16] == meta_guid {
             meta_offset = file_offset;
-            meta_len    = length;
+            meta_len = length;
         }
     }
 
@@ -310,17 +333,19 @@ fn parse_vhdx_region_table(
         return Err(VhdError::InvalidFormat("VHDX BAT region not found".into()));
     }
     if meta_offset == 0 {
-        return Err(VhdError::InvalidFormat("VHDX metadata region not found".into()));
+        return Err(VhdError::InvalidFormat(
+            "VHDX metadata region not found".into(),
+        ));
     }
 
     Ok((bat_offset, bat_len, meta_offset, meta_len))
 }
 
 struct VhdxMeta {
-    block_size:       u32,
+    block_size: u32,
     virtual_disk_size: u64,
-    has_parent:       bool,
-    chunk_ratio:      u64,
+    has_parent: bool,
+    chunk_ratio: u64,
 }
 
 fn parse_vhdx_metadata(f: &mut File, meta_region_offset: u64) -> Result<VhdxMeta, VhdError> {
@@ -328,29 +353,34 @@ fn parse_vhdx_metadata(f: &mut File, meta_region_offset: u64) -> Result<VhdxMeta
         .map_err(|e| VhdError::Io(e.to_string()))?;
 
     let mut hdr = [0u8; 32];
-    f.read_exact(&mut hdr).map_err(|e| VhdError::Io(e.to_string()))?;
+    f.read_exact(&mut hdr)
+        .map_err(|e| VhdError::Io(e.to_string()))?;
 
     if &hdr[..8] != b"metadata" {
-        return Err(VhdError::InvalidFormat("VHDX metadata table signature missing".into()));
+        return Err(VhdError::InvalidFormat(
+            "VHDX metadata table signature missing".into(),
+        ));
     }
     let entry_count = u16::from_le_bytes([hdr[10], hdr[11]]) as usize;
 
-    let fp_guid  = guid_bytes(GUID_FILE_PARAMS);
+    let fp_guid = guid_bytes(GUID_FILE_PARAMS);
     let vds_guid = guid_bytes(GUID_VIRT_DISK_SIZE);
     let lss_guid = guid_bytes(GUID_LOGICAL_SECTOR);
 
-    let mut block_size:        u32 = 2 * 1024 * 1024; // default 2 MiB
+    let mut block_size: u32 = 2 * 1024 * 1024; // default 2 MiB
     let mut virtual_disk_size: u64 = 0;
     let mut logical_sector_size: u32 = 512;
     let mut has_parent = false;
 
     for _ in 0..entry_count {
         let mut entry = [0u8; 32];
-        f.read_exact(&mut entry).map_err(|e| VhdError::Io(e.to_string()))?;
+        f.read_exact(&mut entry)
+            .map_err(|e| VhdError::Io(e.to_string()))?;
 
         let item_offset = u32::from_le_bytes(entry[16..20].try_into().unwrap()) as u64;
         let item_length = u32::from_le_bytes(entry[20..24].try_into().unwrap()) as usize;
-        let saved_pos = f.seek(SeekFrom::Current(0))
+        let saved_pos = f
+            .seek(SeekFrom::Current(0))
             .map_err(|e| VhdError::Io(e.to_string()))?;
 
         // Read item data
@@ -358,12 +388,13 @@ fn parse_vhdx_metadata(f: &mut File, meta_region_offset: u64) -> Result<VhdxMeta
         f.seek(SeekFrom::Start(read_at))
             .map_err(|e| VhdError::Io(e.to_string()))?;
         let mut item_data = vec![0u8; item_length.min(32)];
-        f.read_exact(&mut item_data).map_err(|e| VhdError::Io(e.to_string()))?;
+        f.read_exact(&mut item_data)
+            .map_err(|e| VhdError::Io(e.to_string()))?;
 
         if entry[..16] == fp_guid && item_data.len() >= 8 {
             block_size = u32::from_le_bytes(item_data[0..4].try_into().unwrap());
-            let bits    = u32::from_le_bytes(item_data[4..8].try_into().unwrap());
-            has_parent  = (bits & 2) != 0;
+            let bits = u32::from_le_bytes(item_data[4..8].try_into().unwrap());
+            has_parent = (bits & 2) != 0;
         } else if entry[..16] == vds_guid && item_data.len() >= 8 {
             virtual_disk_size = u64::from_le_bytes(item_data[0..8].try_into().unwrap());
         } else if entry[..16] == lss_guid && item_data.len() >= 4 {
@@ -376,15 +407,16 @@ fn parse_vhdx_metadata(f: &mut File, meta_region_offset: u64) -> Result<VhdxMeta
     }
 
     if virtual_disk_size == 0 {
-        return Err(VhdError::InvalidFormat("VHDX virtual disk size is zero".into()));
+        return Err(VhdError::InvalidFormat(
+            "VHDX virtual disk size is zero".into(),
+        ));
     }
     if block_size == 0 {
         return Err(VhdError::InvalidFormat("VHDX block size is zero".into()));
     }
 
     // chunk_ratio = (2^23 * logical_sector_size) / block_size
-    let chunk_ratio =
-        ((1u64 << 23) * logical_sector_size as u64) / block_size as u64;
+    let chunk_ratio = ((1u64 << 23) * logical_sector_size as u64) / block_size as u64;
 
     Ok(VhdxMeta {
         block_size,
@@ -406,7 +438,8 @@ fn parse_vhdx_bat(
         .map_err(|e| VhdError::Io(e.to_string()))?;
 
     let mut buf = vec![0u8; bat_length as usize];
-    f.read_exact(&mut buf).map_err(|e| VhdError::Io(e.to_string()))?;
+    f.read_exact(&mut buf)
+        .map_err(|e| VhdError::Io(e.to_string()))?;
 
     let bat: Vec<u64> = buf
         .chunks(8)
@@ -423,12 +456,12 @@ fn parse_vhdx_bat(
 const VHDX_PAYLOAD_FULLY_PRESENT: u64 = 6;
 
 struct VhdxReader {
-    file:         File,
-    bat:          Vec<u64>,
-    block_size:   u64,
+    file: File,
+    bat: Vec<u64>,
+    block_size: u64,
     virtual_size: u64,
-    chunk_ratio:  u64,
-    logical_pos:  u64,
+    chunk_ratio: u64,
+    logical_pos: u64,
 }
 
 impl Read for VhdxReader {
@@ -437,13 +470,13 @@ impl Read for VhdxReader {
             return Ok(0);
         }
         let remaining = (self.virtual_size - self.logical_pos) as usize;
-        let to_read   = buf.len().min(remaining);
-        let buf       = &mut buf[..to_read];
+        let to_read = buf.len().min(remaining);
+        let buf = &mut buf[..to_read];
 
-        let data_block_idx     = self.logical_pos / self.block_size;
-        let offset_in_block    = self.logical_pos % self.block_size;
-        let can_read_in_block  = (self.block_size - offset_in_block) as usize;
-        let this_read          = buf.len().min(can_read_in_block);
+        let data_block_idx = self.logical_pos / self.block_size;
+        let offset_in_block = self.logical_pos % self.block_size;
+        let can_read_in_block = (self.block_size - offset_in_block) as usize;
+        let this_read = buf.len().min(can_read_in_block);
 
         // BAT index for this data block (interleaved with sector-bitmap entries)
         let bat_idx = if self.chunk_ratio > 0 {
@@ -459,7 +492,7 @@ impl Read for VhdxReader {
         }
 
         let bat_entry = self.bat[bat_idx as usize];
-        let state     = bat_entry & 0x7;
+        let state = bat_entry & 0x7;
 
         if state != VHDX_PAYLOAD_FULLY_PRESENT {
             // PAYLOAD_BLOCK_NOT_PRESENT, ZERO, UNDEFINED, UNMAPPED → emit zeros
@@ -470,7 +503,7 @@ impl Read for VhdxReader {
 
         // FileOffsetMB is stored in bits [63:20]
         let file_offset_mb = bat_entry >> 20;
-        let file_offset    = file_offset_mb * (1024 * 1024) + offset_in_block;
+        let file_offset = file_offset_mb * (1024 * 1024) + offset_in_block;
 
         self.file
             .seek(SeekFrom::Start(file_offset))
@@ -516,9 +549,11 @@ pub fn open_ffu_reader(path: &str) -> Result<Box<dyn Read + Send + 'static>, Vhd
     // ImageHeaderSize at offset 0 (u32 LE)
     let img_hdr_size = u32::from_le_bytes([img_hdr[0], img_hdr[1], img_hdr[2], img_hdr[3]]) as u64;
     // ManifestLength at offset 20 (u32 LE)
-    let manifest_len = u32::from_le_bytes([img_hdr[20], img_hdr[21], img_hdr[22], img_hdr[23]]) as u64;
+    let manifest_len =
+        u32::from_le_bytes([img_hdr[20], img_hdr[21], img_hdr[22], img_hdr[23]]) as u64;
     // ChunkSize at offset 24 (u32 LE) — in sectors
-    let chunk_size_sectors = u32::from_le_bytes([img_hdr[24], img_hdr[25], img_hdr[26], img_hdr[27]]) as u64;
+    let chunk_size_sectors =
+        u32::from_le_bytes([img_hdr[24], img_hdr[25], img_hdr[26], img_hdr[27]]) as u64;
 
     let chunk_size = chunk_size_sectors * 512;
     let store_offset = sig_size + img_hdr_size + manifest_len;
@@ -532,9 +567,11 @@ pub fn open_ffu_reader(path: &str) -> Result<Box<dyn Read + Send + 'static>, Vhd
         .map_err(|e| VhdError::Io(e.to_string()))?;
 
     // MajorVersion at 0 (u16), StoreHeaderSize at 4 (u32)
-    let store_hdr_size = u32::from_le_bytes([store_hdr[4], store_hdr[5], store_hdr[6], store_hdr[7]]) as u64;
+    let store_hdr_size =
+        u32::from_le_bytes([store_hdr[4], store_hdr[5], store_hdr[6], store_hdr[7]]) as u64;
     // NumberOfBlockDataEntries at offset 8 (u32)
-    let num_entries = u32::from_le_bytes([store_hdr[8], store_hdr[9], store_hdr[10], store_hdr[11]]) as usize;
+    let num_entries =
+        u32::from_le_bytes([store_hdr[8], store_hdr[9], store_hdr[10], store_hdr[11]]) as usize;
 
     // Read block data entries
     let entry_offset = store_offset + store_hdr_size;
@@ -638,7 +675,10 @@ struct LimitedReader {
 
 impl LimitedReader {
     fn new(f: File, limit: u64) -> Self {
-        LimitedReader { inner: f, remaining: limit }
+        LimitedReader {
+            inner: f,
+            remaining: limit,
+        }
     }
 }
 

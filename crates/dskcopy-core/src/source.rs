@@ -74,7 +74,9 @@ impl SourceDescriptor {
         }
     }
 
-    fn open_local_reader(&self) -> Result<(Box<dyn Read + Send + 'static>, Option<u64>), FlashError> {
+    fn open_local_reader(
+        &self,
+    ) -> Result<(Box<dyn Read + Send + 'static>, Option<u64>), FlashError> {
         let path = &self.input;
         let file = File::open(path).map_err(|e| {
             FlashError::User(format!("Could not open source file '{}': {}", path, e))
@@ -108,15 +110,17 @@ impl SourceDescriptor {
                     FlashError::User(format!("Could not parse zip archive '{}': {}", path, e))
                 })?;
                 if archive.len() == 0 {
-                    return Err(FlashError::User(
-                        "Zip archive is empty.".to_string(),
-                    ));
+                    return Err(FlashError::User("Zip archive is empty.".to_string()));
                 }
-                let entry = archive.by_index(0).map_err(|e| {
-                    FlashError::User(format!("Could not open zip entry: {}", e))
-                })?;
+                let entry = archive
+                    .by_index(0)
+                    .map_err(|e| FlashError::User(format!("Could not open zip entry: {}", e)))?;
                 let uncompressed = entry.size();
-                let size = if uncompressed > 0 { Some(uncompressed) } else { None };
+                let size = if uncompressed > 0 {
+                    Some(uncompressed)
+                } else {
+                    None
+                };
                 // We need to read the whole entry into a Vec since zip::ZipFile
                 // borrows the archive. For streaming we use a pipe via thread.
                 let (reader, _size) = zip_entry_to_reader(path, size)?;
@@ -154,9 +158,7 @@ impl SourceDescriptor {
         let base_reader = ResumeReader::new(url, response, 0, accepts_ranges);
 
         let (reader, size): (Box<dyn Read + Send + 'static>, Option<u64>) = match compression {
-            Compression::None => {
-                (Box::new(base_reader), content_length)
-            }
+            Compression::None => (Box::new(base_reader), content_length),
             Compression::Gz => {
                 let dec = GzDecoder::new(base_reader);
                 (Box::new(dec), None)
@@ -174,25 +176,33 @@ impl SourceDescriptor {
                 // For URL+zip: download into memory buffer, then parse
                 let mut buf = Vec::new();
                 let mut r = base_reader;
-                r.read_to_end(&mut buf).map_err(|e| {
-                    FlashError::User(format!("Failed to download zip: {}", e))
-                })?;
+                r.read_to_end(&mut buf)
+                    .map_err(|e| FlashError::User(format!("Failed to download zip: {}", e)))?;
                 let cursor = std::io::Cursor::new(buf);
                 let mut archive = zip::ZipArchive::new(cursor).map_err(|e| {
                     FlashError::User(format!("Could not parse downloaded zip: {}", e))
                 })?;
                 if archive.len() == 0 {
-                    return Err(FlashError::User("Downloaded zip archive is empty.".to_string()));
+                    return Err(FlashError::User(
+                        "Downloaded zip archive is empty.".to_string(),
+                    ));
                 }
-                let entry = archive.by_index(0).map_err(|e| {
-                    FlashError::User(format!("Could not open zip entry: {}", e))
-                })?;
+                let entry = archive
+                    .by_index(0)
+                    .map_err(|e| FlashError::User(format!("Could not open zip entry: {}", e)))?;
                 let uncompressed = entry.size();
                 let mut data = Vec::with_capacity(uncompressed as usize);
-                entry.take(uncompressed).read_to_end(&mut data).map_err(|e| {
-                    FlashError::User(format!("Failed to decompress zip entry: {}", e))
-                })?;
-                let size = if data.is_empty() { None } else { Some(data.len() as u64) };
+                entry
+                    .take(uncompressed)
+                    .read_to_end(&mut data)
+                    .map_err(|e| {
+                        FlashError::User(format!("Failed to decompress zip entry: {}", e))
+                    })?;
+                let size = if data.is_empty() {
+                    None
+                } else {
+                    Some(data.len() as u64)
+                };
                 (Box::new(std::io::Cursor::new(data)), size)
             }
         };
@@ -217,7 +227,12 @@ impl ResumeReader {
         bytes_read: u64,
         accepts_ranges: bool,
     ) -> Self {
-        ResumeReader { url, inner: response, bytes_read, accepts_ranges }
+        ResumeReader {
+            url,
+            inner: response,
+            bytes_read,
+            accepts_ranges,
+        }
     }
 
     fn reconnect(&mut self) -> io::Result<()> {
@@ -358,7 +373,11 @@ fn zip_entry_to_reader(
         }
     });
 
-    let reader = ChannelReader { rx, buf: Vec::new(), pos: 0 };
+    let reader = ChannelReader {
+        rx,
+        buf: Vec::new(),
+        pos: 0,
+    };
     Ok((Box::new(reader), ()))
 }
 

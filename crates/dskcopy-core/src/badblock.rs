@@ -203,7 +203,9 @@ fn make_pattern(idx: u64) -> Vec<u8> {
         let bytes = val.to_le_bytes();
         let len = chunk.len();
         chunk.copy_from_slice(&bytes[..len]);
-        val = val.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        val = val
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
     }
     buf
 }
