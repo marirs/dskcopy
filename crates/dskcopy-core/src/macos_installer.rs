@@ -4,8 +4,12 @@
 //! binary embedded inside the installer app bundle.
 
 use crate::image::{FlashError, FlashResult};
-use crate::{ProgressInfo, Stage};
+use crate::ProgressInfo;
+#[cfg(target_os = "macos")]
+use crate::Stage;
+#[cfg(target_os = "macos")]
 use std::io::{BufRead, BufReader};
+#[cfg(target_os = "macos")]
 use std::process::{Command, Stdio};
 
 /// Returns true if `dmg_path` contains a macOS full-installer app bundle
