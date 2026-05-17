@@ -2,8 +2,6 @@
 // Palette: Catppuccin Macchiato · accent: dskcopy green (#52c97a)
 // Window: 700 × 480 · single-screen layout with drive sidebar.
 
-import { ComboBox } from "std-widgets.slint";
-
 export struct DriveItem {
     device: string,
     name: string,
@@ -14,6 +12,7 @@ export struct DriveItem {
 
 export component AppWindow inherits Window {
     title: "dskcopy";
+    icon: @image-url("../../../assets/dskcopy-icon.svg");
     width: 700px;
     height: 480px;
     background: #181825;
@@ -32,27 +31,14 @@ export component AppWindow inherits Window {
     in-out property <bool> show-macos-option: false;
     in-out property <bool> show-win11-option: false;
 
-    // Windows ISO picker
-    in-out property <[string]> iso-versions: [
-        "Windows 11 24H2",
-        "Windows 11 23H2",
-        "Windows 10 22H2",
-        "Windows Server 2022",
-    ];
-    in-out property <int>      iso-version-index: 0;
-    in-out property <[string]> iso-language-names: ["English (US)"];
-    in-out property <int>      iso-language-index: 0;
-
     // Activity
     in-out property <string> target-info: "";
     in-out property <int>    progress-value: 0;
     in-out property <string> status-text: "";
     in-out property <string> download-speed: "";
-    in-out property <bool>   format-first: false;
     in-out property <bool>   macos-installer: false;
     in-out property <bool>   bypass-requirements: false;
     in-out property <bool>   is-flashing: false;
-    in-out property <bool>   download-active: false;
 
     // Overlays
     in-out property <string> error-message: "";
@@ -60,15 +46,13 @@ export component AppWindow inherits Window {
     in-out property <bool>   show-confirm: false;
     in-out property <bool>   show-about: false;
 
-    // Local UI state
-    property <bool> show-advanced: false;
-
     // Derived
     property <bool> has-source: source-info != "" && source-info != "No image selected";
     property <bool> has-target: target-info != "";
-    property <bool> activity: is-flashing || download-active;
-    property <bool> show-progress-block: is-flashing || (progress-value > 0 && progress-value < 100 && !download-active);
+    property <bool> activity: is-flashing;
+    property <bool> show-progress-block: is-flashing || (progress-value > 0 && progress-value < 100);
     property <bool> can-flash: has-source && has-target && !is-flashing;
+    property <bool> has-any-option: show-macos-option || show-win11-option;
 
     // ── Callbacks ─────────────────────────────────────────────────────────────
     callback pick-source();
@@ -81,9 +65,6 @@ export component AppWindow inherits Window {
     callback dismiss-error();
     callback show-about-dialog();
     callback close-about();
-    callback select-iso-version(int);
-    callback start-iso-download(int, int);
-    callback cancel-iso-download();
 
     // ── Keyboard shortcuts ────────────────────────────────────────────────────
     forward-focus: key-handler;
@@ -157,7 +138,7 @@ export component AppWindow inherits Window {
 
         // ── Error banner ─────────────────────────────────────────────────────
         if error-message != "" : Rectangle {
-            height: 36px;
+            min-height: 36px;
             background: rgba(243, 139, 168, 0.08);
             Rectangle { y: parent.height - 1px; height: 1px; background: rgba(243, 139, 168, 0.2); }
 
@@ -175,8 +156,7 @@ export component AppWindow inherits Window {
                     font-size: 12px;
                     vertical-alignment: center;
                     horizontal-stretch: 1;
-                    overflow: elide;
-                    wrap: no-wrap;
+                    wrap: word-wrap;
                 }
 
                 Rectangle {
@@ -339,316 +319,191 @@ export component AppWindow inherits Window {
                     background: #181825;
                     clip: true;
 
-                    content-flick := Flickable {
-                        x: 0; y: 0;
-                        width: parent.width;
-                        height: parent.height;
-                        viewport-width: parent.width;
-                        viewport-height: content-col.preferred-height;
+                    VerticalLayout {
+                        spacing: 0px;
+                        padding: 0px;
 
-                        content-col := VerticalLayout {
-                            padding: 16px;
-                            spacing: 14px;
-                            width: parent.width;
+                        // Main content section: SOURCE + OPTIONS
+                        Rectangle {
+                            vertical-stretch: 1;
+                            clip: true;
 
-                            // ── SECTION 1: SOURCE ──────────────────────────
-                            VerticalLayout {
-                                spacing: 6px;
-                                Text {
-                                    text: "SOURCE";
-                                    color: #6c7086;
-                                    font-size: 10px;
-                                    font-weight: 700;
-                                    letter-spacing: 1px;
-                                }
+                            content-col := VerticalLayout {
+                                padding: 16px;
+                                spacing: 14px;
 
-                                // Dropzone — entire area clickable
-                                Rectangle {
-                                    height: 88px;
-                                    border-radius: 8px;
-                                    border-width: 2px;
-                                    border-color: has-source
-                                        ? rgba(82, 201, 122, 0.55)
-                                        : (dz-hover.has-hover ? rgba(82, 201, 122, 0.45) : #585b70);
-                                    background: has-source
-                                        ? rgba(82, 201, 122, 0.05)
-                                        : (dz-hover.has-hover ? rgba(82, 201, 122, 0.04) : transparent);
-                                    animate border-color { duration: 150ms; }
-                                    animate background { duration: 150ms; }
-
+                                    // ── SECTION 1: SOURCE ──────────────────────────
                                     VerticalLayout {
-                                        alignment: center;
-                                        spacing: 4px;
-                                        padding: 10px;
-
-                                        if has-source : Text {
-                                            text: "✓  " + source-info;
-                                            color: #cdd6f4;
-                                            font-size: 12px;
-                                            font-weight: 500;
-                                            horizontal-alignment: center;
-                                            overflow: elide;
-                                        }
-                                        if has-source && detected-type != "" : Text {
-                                            text: detected-type;
-                                            color: #52c97a;
-                                            font-size: 10px;
-                                            font-weight: 600;
-                                            horizontal-alignment: center;
-                                        }
-                                        if !has-source : Text {
-                                            text: "↑";
-                                            color: dz-hover.has-hover ? #52c97a : #6c7086;
-                                            font-size: 22px;
-                                            horizontal-alignment: center;
-                                        }
-                                        if !has-source : Text {
-                                            text: "Drag and drop an image here or click";
-                                            color: dz-hover.has-hover ? #cdd6f4 : #a6adc8;
-                                            font-size: 12px;
-                                            horizontal-alignment: center;
-                                        }
-                                        if !has-source : Text {
-                                            text: ".iso  .img  .dmg  .raw  .gz  .xz  .zip";
-                                            color: #45475a;
-                                            font-size: 10px;
-                                            horizontal-alignment: center;
-                                        }
-                                    }
-                                    dz-hover := TouchArea {
-                                        mouse-cursor: pointer;
-                                        clicked => { pick-source(); }
-                                    }
-                                }
-                            }
-
-                            // ── SECTION 2: DOWNLOAD ISO ───────────────────
-                            VerticalLayout {
-                                spacing: 6px;
-                                Text {
-                                    text: "DOWNLOAD ISO";
-                                    color: #6c7086;
-                                    font-size: 10px;
-                                    font-weight: 700;
-                                    letter-spacing: 1px;
-                                }
-
-                                Rectangle {
-                                    height: download-active ? 92px : 44px;
-                                    border-radius: 8px;
-                                    border-width: 1px;
-                                    border-color: #313244;
-                                    background: #1e1e2e;
-                                    animate height { duration: 150ms; easing: ease-out; }
-
-                                    VerticalLayout {
-                                        padding: 8px;
+                                        vertical-stretch: has-source ? 0 : 1;
                                         spacing: 6px;
-
-                                        HorizontalLayout {
-                                            spacing: 6px;
-
-                                            ComboBox {
-                                                model: iso-versions;
-                                                current-index <=> iso-version-index;
-                                                horizontal-stretch: 3;
-                                                enabled: !download-active;
-                                                selected(_) => { root.select-iso-version(self.current-index); }
-                                            }
-
-                                            ComboBox {
-                                                model: iso-language-names;
-                                                current-index <=> iso-language-index;
-                                                horizontal-stretch: 2;
-                                                enabled: !download-active;
-                                            }
-
-                                            Rectangle {
-                                                width: 86px;
-                                                height: 26px;
-                                                border-radius: 5px;
-                                                background: download-active
-                                                    ? #45475a
-                                                    : (dl-ta.has-hover ? #3db86a : #52c97a);
-                                                animate background { duration: 120ms; }
-                                                Text {
-                                                    text: download-active ? "Cancel" : "Download";
-                                                    color: download-active ? #cdd6f4 : #181825;
-                                                    font-size: 11px;
-                                                    font-weight: 700;
-                                                    horizontal-alignment: center;
-                                                    vertical-alignment: center;
-                                                }
-                                                dl-ta := TouchArea {
-                                                    mouse-cursor: pointer;
-                                                    clicked => {
-                                                        if download-active {
-                                                            root.cancel-iso-download();
-                                                        } else {
-                                                            root.start-iso-download(iso-version-index, iso-language-index);
-                                                        }
-                                                    }
-                                                }
-                                            }
+                                        Text {
+                                            text: "SOURCE";
+                                            color: #6c7086;
+                                            font-size: 10px;
+                                            font-weight: 700;
+                                            letter-spacing: 1px;
                                         }
 
-                                        // Inline progress when downloading
-                                        if download-active : VerticalLayout {
-                                            spacing: 4px;
-                                            HorizontalLayout {
-                                                spacing: 8px;
+                                        // Dropzone — entire area clickable
+                                        if has-source : Rectangle {
+                                            height: 88px;
+                                            border-radius: 8px;
+                                            border-width: 2px;
+                                            border-color: has-source
+                                                ? rgba(82, 201, 122, 0.55)
+                                                : (dz-hover.has-hover ? rgba(82, 201, 122, 0.45) : #585b70);
+                                            background: has-source
+                                                ? rgba(82, 201, 122, 0.05)
+                                                : (dz-hover.has-hover ? rgba(82, 201, 122, 0.04) : transparent);
+                                            animate border-color { duration: 150ms; }
+                                            animate background { duration: 150ms; }
+
+                                            VerticalLayout {
+                                                alignment: center;
+                                                spacing: 4px;
+                                                padding: 10px;
+
                                                 Text {
-                                                    text: status-text != "" ? status-text : "Downloading…";
+                                                    text: "✓  " + source-info;
                                                     color: #cdd6f4;
-                                                    font-size: 11px;
-                                                    vertical-alignment: center;
-                                                    horizontal-stretch: 1;
+                                                    font-size: 12px;
+                                                    font-weight: 500;
+                                                    horizontal-alignment: center;
                                                     overflow: elide;
                                                 }
-                                                Text {
-                                                    text: progress-value + " %";
-                                                    color: #a6adc8;
-                                                    font-size: 11px;
+                                                if detected-type != "" : Text {
+                                                    text: detected-type;
+                                                    color: #52c97a;
+                                                    font-size: 10px;
                                                     font-weight: 600;
-                                                    vertical-alignment: center;
+                                                    horizontal-alignment: center;
                                                 }
                                             }
-                                            Rectangle {
-                                                height: 4px;
-                                                border-radius: 2px;
-                                                background: #313244;
-                                                Rectangle {
-                                                    x: 0;
-                                                    height: 4px;
-                                                    border-radius: 2px;
-                                                    width: (parent.width * progress-value) / 100;
-                                                    background: #52c97a;
-                                                    animate width { duration: 200ms; easing: ease-out; }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            // ── SECTION 3: OPTIONS ────────────────────────
-                            VerticalLayout {
-                                spacing: 6px;
-                                Text {
-                                    text: "OPTIONS";
-                                    color: #6c7086;
-                                    font-size: 10px;
-                                    font-weight: 700;
-                                    letter-spacing: 1px;
-                                }
-
-                                // Format option (always)
-                                HorizontalLayout {
-                                    spacing: 8px;
-                                    alignment: start;
-                                    Rectangle {
-                                        width: 16px;
-                                        height: 16px;
-                                        border-radius: 3px;
-                                        border-width: 1px;
-                                        border-color: format-first ? #52c97a : #45475a;
-                                        background: format-first ? rgba(82, 201, 122, 0.15) : transparent;
-                                        if format-first : Text { text: "✓"; color: #52c97a; font-size: 10px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
-                                        TouchArea {
-                                            mouse-cursor: pointer;
-                                            clicked => { root.format-first = !root.format-first; }
-                                        }
-                                    }
-                                    Text { text: "Format before write (GPT + FAT32)"; color: #a6adc8; font-size: 12px; vertical-alignment: center; }
-                                }
-
-                                // macOS DMG option (conditional)
-                                if show-macos-option : HorizontalLayout {
-                                    spacing: 8px;
-                                    alignment: start;
-                                    Rectangle {
-                                        width: 16px;
-                                        height: 16px;
-                                        border-radius: 3px;
-                                        border-width: 1px;
-                                        border-color: macos-installer ? #52c97a : #45475a;
-                                        background: macos-installer ? rgba(82, 201, 122, 0.15) : transparent;
-                                        if macos-installer : Text { text: "✓"; color: #52c97a; font-size: 10px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
-                                        TouchArea {
-                                            mouse-cursor: pointer;
-                                            clicked => { root.macos-installer = !root.macos-installer; }
-                                        }
-                                    }
-                                    Text { text: "Use createinstallmedia (macOS DMG)"; color: #a6adc8; font-size: 12px; vertical-alignment: center; }
-                                }
-
-                                // Windows 11 bypass (conditional)
-                                if show-win11-option : HorizontalLayout {
-                                    spacing: 8px;
-                                    alignment: start;
-                                    Rectangle {
-                                        width: 16px;
-                                        height: 16px;
-                                        border-radius: 3px;
-                                        border-width: 1px;
-                                        border-color: bypass-requirements ? #f9e2af : #45475a;
-                                        background: bypass-requirements ? rgba(249, 226, 175, 0.12) : transparent;
-                                        if bypass-requirements : Text { text: "✓"; color: #f9e2af; font-size: 10px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
-                                        TouchArea {
-                                            mouse-cursor: pointer;
-                                            clicked => { root.bypass-requirements = !root.bypass-requirements; }
-                                        }
-                                    }
-                                    Text {
-                                        text: "Remove Windows 11 requirements (TPM/SecureBoot/RAM)";
-                                        color: bypass-requirements ? #f9e2af : #a6adc8;
-                                        font-size: 12px;
-                                        vertical-alignment: center;
-                                        overflow: elide;
-                                    }
-                                }
-
-                                // Advanced disclosure (placeholder)
-                                Rectangle {
-                                    height: show-advanced ? 38px : 18px;
-                                    animate height { duration: 120ms; }
-                                    clip: true;
-                                    VerticalLayout {
-                                        spacing: 4px;
-                                        Rectangle {
-                                            height: 18px;
-                                            background: transparent;
-                                            HorizontalLayout {
-                                                alignment: start;
-                                                Text {
-                                                    text: show-advanced ? "▾ Advanced" : "▸ Advanced";
-                                                    color: adv-ta.has-hover ? #89b4fa : #6c7086;
-                                                    font-size: 11px;
-                                                    vertical-alignment: center;
-                                                }
-                                            }
-                                            adv-ta := TouchArea {
+                                            dz-hover := TouchArea {
                                                 mouse-cursor: pointer;
-                                                clicked => { root.show-advanced = !root.show-advanced; }
+                                                clicked => { pick-source(); }
                                             }
                                         }
-                                        if show-advanced : Text {
-                                            text: "Partition scheme · file system · cluster size · volume label — coming soon";
-                                            color: #45475a;
-                                            font-size: 10px;
-                                            wrap: word-wrap;
+
+                                        if !has-source : Rectangle {
+                                            vertical-stretch: 1;
+                                            min-height: 88px;
+                                            border-radius: 8px;
+                                            border-width: 2px;
+                                            border-color: dz-empty-hover.has-hover ? rgba(82, 201, 122, 0.45) : #585b70;
+                                            background: dz-empty-hover.has-hover ? rgba(82, 201, 122, 0.04) : transparent;
+                                            animate border-color { duration: 150ms; }
+                                            animate background { duration: 150ms; }
+
+                                            VerticalLayout {
+                                                alignment: center;
+                                                spacing: 4px;
+                                                padding: 10px;
+
+                                                Text {
+                                                    text: "↑";
+                                                    color: dz-empty-hover.has-hover ? #52c97a : #6c7086;
+                                                    font-size: 30px;
+                                                    horizontal-alignment: center;
+                                                }
+                                                Text {
+                                                    text: "Drag and drop an image here or click";
+                                                    color: dz-empty-hover.has-hover ? #cdd6f4 : #a6adc8;
+                                                    font-size: 14px;
+                                                    horizontal-alignment: center;
+                                                }
+                                                Text {
+                                                    text: ".iso  .img  .dmg  .raw  .gz  .xz  .zip";
+                                                    color: #45475a;
+                                                    font-size: 10px;
+                                                    horizontal-alignment: center;
+                                                }
+                                            }
+                                            dz-empty-hover := TouchArea {
+                                                mouse-cursor: pointer;
+                                                clicked => { pick-source(); }
+                                            }
                                         }
                                     }
-                                }
-                            }
 
-                            // ── SECTION 4: FLASH ──────────────────────────
+                                    // ── SECTION 2: OPTIONS (only when applicable) ─
+                                    if has-any-option : VerticalLayout {
+                                        spacing: 6px;
+                                        Text {
+                                            text: "OPTIONS";
+                                            color: #6c7086;
+                                            font-size: 10px;
+                                            font-weight: 700;
+                                            letter-spacing: 1px;
+                                        }
+
+                                        // macOS DMG option (conditional)
+                                        if show-macos-option : HorizontalLayout {
+                                            spacing: 8px;
+                                            alignment: start;
+                                            Rectangle {
+                                                width: 16px;
+                                                height: 16px;
+                                                border-radius: 3px;
+                                                border-width: 1px;
+                                                border-color: macos-installer ? #52c97a : #45475a;
+                                                background: macos-installer ? rgba(82, 201, 122, 0.15) : transparent;
+                                                if macos-installer : Text { text: "✓"; color: #52c97a; font-size: 10px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+                                                TouchArea {
+                                                    mouse-cursor: pointer;
+                                                    clicked => { root.macos-installer = !root.macos-installer; }
+                                                }
+                                            }
+                                            Text { text: "Use createinstallmedia (macOS DMG)"; color: #a6adc8; font-size: 12px; vertical-alignment: center; }
+                                        }
+
+                                        // Windows 11 bypass (conditional)
+                                        if show-win11-option : HorizontalLayout {
+                                            spacing: 8px;
+                                            alignment: start;
+                                            Rectangle {
+                                                width: 16px;
+                                                height: 16px;
+                                                border-radius: 3px;
+                                                border-width: 1px;
+                                                border-color: bypass-requirements ? #f9e2af : #45475a;
+                                                background: bypass-requirements ? rgba(249, 226, 175, 0.12) : transparent;
+                                                if bypass-requirements : Text { text: "✓"; color: #f9e2af; font-size: 10px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+                                                TouchArea {
+                                                    mouse-cursor: pointer;
+                                                    clicked => { root.bypass-requirements = !root.bypass-requirements; }
+                                                }
+                                            }
+                                            Text {
+                                                text: "Remove Windows 11 requirements (TPM/SecureBoot/RAM)";
+                                                color: bypass-requirements ? #f9e2af : #a6adc8;
+                                                font-size: 12px;
+                                                vertical-alignment: center;
+                                                overflow: elide;
+                                            }
+                                        }
+                                    }
+                            }
+                        }
+
+                        // Separator between scrollable content and pinned Flash bar
+                        Rectangle { height: 1px; background: #313244; }
+
+                        // ── Pinned FLASH section (always visible at bottom) ──
+                        Rectangle {
+                            height: 84px;
+                            background: #181825;
+
                             VerticalLayout {
-                                spacing: 8px;
+                                padding-left: 16px;
+                                padding-right: 16px;
+                                padding-top: 10px;
+                                padding-bottom: 10px;
+                                spacing: 6px;
 
                                 // Progress block (only while flashing)
                                 if show-progress-block : VerticalLayout {
-                                    spacing: 5px;
+                                    spacing: 4px;
                                     HorizontalLayout {
                                         spacing: 8px;
                                         Text {
@@ -668,13 +523,13 @@ export component AppWindow inherits Window {
                                         }
                                     }
                                     Rectangle {
-                                        height: 5px;
-                                        border-radius: 3px;
+                                        height: 4px;
+                                        border-radius: 2px;
                                         background: #313244;
                                         Rectangle {
                                             x: 0;
-                                            height: 5px;
-                                            border-radius: 3px;
+                                            height: 4px;
+                                            border-radius: 2px;
                                             width: (parent.width * progress-value) / 100;
                                             background: progress-value >= 100 ? #a6e3a1 : #52c97a;
                                             animate width { duration: 200ms; easing: ease-out; }
@@ -693,7 +548,7 @@ export component AppWindow inherits Window {
                                     Text {
                                         text: is-flashing
                                             ? "Flashing…"
-                                            : (progress-value == 100 && !download-active ? "Flash Complete" : "Flash Now");
+                                            : (progress-value == 100 ? "Flash Complete" : "Flash Now");
                                         color: is-flashing ? #6c7086 : #181825;
                                         font-size: 13px;
                                         font-weight: 700;
@@ -753,8 +608,8 @@ export component AppWindow inherits Window {
                 }
 
                 Text {
-                    text: is-flashing ? "Writing" : (download-active ? "Downloading" : "Ready");
-                    color: is-flashing ? #f9e2af : (download-active ? #89b4fa : #a6e3a1);
+                    text: is-flashing ? "Writing" : "Ready";
+                    color: is-flashing ? #f9e2af : #a6e3a1;
                     font-size: 10px;
                     vertical-alignment: center;
                 }

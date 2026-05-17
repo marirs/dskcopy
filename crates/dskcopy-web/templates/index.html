@@ -1,303 +1,421 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>dskcopy — Blazing Fast USB Flash Tool</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dskcopy — Fast, safe disk image writer</title>
+<meta name="description" content="Flash ISO, IMG, DMG, VHD, VHDX and FFU disk images to USB drives. Cross-platform GUI and CLI for macOS, Windows, and Linux.">
+<link rel="icon" type="image/svg+xml" href="/static/dskcopy-icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #11111b;
+  --bg-2: #181825;
+  --bg-3: #1e1e2e;
+  --bg-4: #252535;
+  --border: #313244;
+  --border-2: #45475a;
+  --text: #cdd6f4;
+  --text-2: #a6adc8;
+  --text-muted: #6c7086;
+  --accent: #52c97a;
+  --accent-2: #1bcf96;
+  --accent-soft: rgba(82, 201, 122, 0.12);
+  --warn: #f9e2af;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration: none; }
+code, pre { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+/* Nav */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(17,17,27,0.8); backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border); padding: 0 24px;
+}
+.nav-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+.brand { display:flex; align-items:center; gap:10px; font-weight:700; }
+.brand img { width: 28px; height: 28px; border-radius: 6px; }
+.brand-text { font-size: 18px; }
+.brand-text .green { color: var(--accent); }
+.nav-links { display:flex; align-items:center; gap: 24px; list-style:none; }
+.nav-links a { color: var(--text-2); font-size: 14px; font-weight: 500; transition: color .15s; }
+.nav-links a:hover { color: var(--text); }
+.nav-gh {
+  display:inline-flex; align-items:center; gap:6px;
+  padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text) !important; font-size: 13px !important;
+}
+.nav-gh:hover { border-color: var(--border-2); background: var(--bg-3); }
+@media (max-width: 640px) { .nav-links li:not(.nav-li-gh) { display:none; } }
+
+/* Hero */
+.hero {
+  padding: 140px 24px 80px;
+  max-width: 1100px; margin: 0 auto; text-align: center;
+}
+.eyebrow {
+  display:inline-block; padding: 4px 12px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent);
+  font-size: 12px; font-weight: 600; letter-spacing: .3px;
+  border: 1px solid rgba(82, 201, 122, 0.25);
+  margin-bottom: 20px;
+}
+.hero h1 {
+  font-size: clamp(36px, 6vw, 64px); font-weight: 800;
+  line-height: 1.05; letter-spacing: -0.02em; margin-bottom: 18px;
+}
+.hero h1 .accent {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.hero p.lead {
+  font-size: 18px; color: var(--text-2); max-width: 680px; margin: 0 auto 32px;
+}
+.cta-row { display:flex; gap: 12px; justify-content:center; flex-wrap:wrap; margin-bottom: 20px; }
+.btn {
+  display:inline-flex; align-items:center; gap:10px;
+  padding: 12px 22px; border-radius: 8px; font-weight: 600; font-size: 15px;
+  transition: transform .12s, background .15s, border-color .15s;
+  cursor: pointer; border: 1px solid transparent;
+}
+.btn-primary { background: var(--accent); color: #11111b; }
+.btn-primary:hover { background: var(--accent-2); transform: translateY(-1px); }
+.btn-ghost { background: transparent; color: var(--text); border-color: var(--border); }
+.btn-ghost:hover { background: var(--bg-3); border-color: var(--border-2); }
+.hero-sub { font-size: 12px; color: var(--text-muted); }
+
+/* Dropdown */
+.dropdown { position: relative; display: inline-block; }
+.dropdown-menu {
+  display:none; position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  background: var(--bg-3); border: 1px solid var(--border); border-radius: 10px;
+  min-width: 280px; box-shadow: var(--shadow); padding: 6px; z-index: 50; text-align: left;
+}
+.dropdown-menu.open { display: block; }
+.dropdown-group { padding: 6px 10px; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; }
+.dropdown-item {
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 8px 10px; border-radius: 6px; font-size: 13px; color: var(--text);
+}
+.dropdown-item:hover { background: var(--bg-4); }
+.dropdown-item .arch {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--text-muted); padding: 2px 6px; background: var(--bg-2); border-radius: 4px;
+}
+
+/* Sections */
+section { padding: 80px 24px; max-width: 1100px; margin: 0 auto; }
+.section-eyebrow { font-size: 12px; color: var(--accent); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; }
+.section-title { font-size: clamp(28px, 4vw, 40px); font-weight: 800; letter-spacing: -0.01em; margin-bottom: 12px; }
+.section-lead { font-size: 16px; color: var(--text-2); max-width: 640px; margin-bottom: 40px; }
+
+/* Features */
+.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.feature {
+  background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 22px; transition: border-color .15s, transform .15s;
+}
+.feature:hover { border-color: var(--border-2); transform: translateY(-2px); }
+.feature-icon {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: var(--accent-soft); color: var(--accent);
+  display: inline-flex; align-items: center; justify-content: center; margin-bottom: 14px;
+  font-size: 18px;
+}
+.feature h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+.feature p { font-size: 14px; color: var(--text-2); }
+
+/* CLI section */
+.cli-card {
+  background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 0; overflow: hidden;
+}
+.cli-card-head {
+  display:flex; align-items:center; gap: 8px;
+  padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--bg-3);
+}
+.cli-dot { width: 10px; height: 10px; border-radius: 50%; }
+.cli-dot.r { background: #f38ba8; } .cli-dot.y { background: var(--warn); } .cli-dot.g { background: var(--accent); }
+.cli-card pre {
+  margin: 0; padding: 20px 24px; font-size: 13px; color: var(--text-2);
+  overflow-x: auto; white-space: pre;
+}
+.cli-card pre .cmd { color: var(--accent); }
+.cli-card pre .arg { color: var(--text); }
+.cli-card pre .cm { color: var(--text-muted); }
+
+/* Downloads */
+.dl-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.dl-card {
+  background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 22px; display:flex; flex-direction:column; gap: 14px;
+}
+.dl-card h3 { font-size: 16px; font-weight: 700; }
+.dl-card .arch-row { display: flex; flex-direction: column; gap: 8px; }
+.dl-card a.arch-link {
+  display:flex; justify-content:space-between; align-items:center;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; transition: border-color .15s, background .15s;
+}
+.dl-card a.arch-link:hover { border-color: var(--accent); background: var(--accent-soft); }
+.dl-card a.arch-link .arch { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); }
+
+/* Footer */
+footer {
+  border-top: 1px solid var(--border); padding: 32px 24px; text-align: center;
+  color: var(--text-muted); font-size: 13px;
+}
+footer a { color: var(--text-2); }
+footer a:hover { color: var(--text); }
+
+/* Reveal */
+.fade-in { opacity: 0; transform: translateY(10px); transition: opacity .5s ease, transform .5s ease; }
+.fade-in.visible { opacity: 1; transform: translateY(0); }
+</style>
 </head>
 <body>
-    <!-- Ambient background -->
-    <div class="ambient" aria-hidden="true">
-        <div class="ambient-orb orb-1"></div>
-        <div class="ambient-orb orb-2"></div>
-        <div class="ambient-grid"></div>
+
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="brand">
+      <img src="/static/dskcopy-icon.svg" alt="">
+      <span class="brand-text">dsk<span class="green">copy</span></span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#cli">CLI</a></li>
+      <li><a href="#download">Download</a></li>
+      <li class="nav-li-gh"><a class="nav-gh" href="https://github.com/{{ repo }}" target="_blank" rel="noopener">GitHub →</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="eyebrow">v{{ version }} · Open source · MIT</div>
+  <h1>Flash disk images <span class="accent">safely.</span></h1>
+  <p class="lead">A focused, cross-platform tool for writing ISO, IMG, DMG, VHD, VHDX and FFU images to USB drives. Drag-and-drop GUI, scriptable CLI.</p>
+  <div class="cta-row">
+    <div class="dropdown">
+      <button id="dlBtn" class="btn btn-primary">
+        <span id="dlLabel">Download</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div id="dlMenu" class="dropdown-menu">
+        <div class="dropdown-group">GUI</div>
+        <div id="guiList"></div>
+        <div class="dropdown-group">CLI</div>
+        <div id="cliList"></div>
+      </div>
     </div>
+    <a class="btn btn-ghost" href="#cli">View CLI usage</a>
+  </div>
+  <div class="hero-sub">Detected: <span id="osName">your platform</span></div>
+</header>
 
-    <!-- NAV -->
-    <header class="nav-wrap">
-        <div class="container nav-inner">
-            <a href="/" class="nav-logo" aria-label="dskcopy home">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="290 330 1200 280" class="logo-svg" aria-hidden="true" focusable="false">
-                    <defs><style>.n1{fill:none}.n2{fill:#ffffff}.n3{fill:#1bcf96}</style></defs>
-                    <path class="n1" d="M0,0h1774v887H0V0ZM428.95,504.92c11.04-2.51,20.52-7.47,28.92-15.26l.53,14.97,21.87-.09-.1-166.5-21.7-.08-.31,55.82c-19.98-15.95-38.73-17.98-63.27-16.95-19.09,1.56-37.29,9.39-49.92,24.15-21.64,25.29-19.73,63.78,4.22,86.79,20.76,19.95,52.14,23.45,79.77,17.16ZM803.23,496.07l-67.7-68.69,60.97-49.05-34.81.1-72.7,59.1-.08-99.51-21.9.03v166.66s21.84.05,21.84.05l.24-40.23,29.71-23.23,62.39,63.44,29.82.09c-2.06-3.43-4.56-5.49-7.79-8.77ZM1013.29,502.27c21.11,7.89,44.13,7.49,64.82-.05,25.48-9.29,41.53-32.67,41.95-58.78.43-26.4-15.05-50.18-40.23-60.44-22.27-9.08-47.9-8.96-69.9.74-27.43,12.09-41.91,40.06-37,69.29,3.81,22.71,18.07,40.91,40.36,49.24ZM1165.99,491.62c12.31,8.16,23.56,13.83,37.04,15.2,17.4,2.43,34.52.47,50.56-6.11,24.75-10.9,38.79-34.79,37.48-61.83-1.23-25.36-17-47.01-40.87-56.15-25.94-9.93-62.38-7.37-83.94,11.99l-.73-12.47-21.54.09.09,174.89,21.65-.24.28-65.37ZM602.22,504.41c13.55-.07,25.78-6.73,32.38-17.59,6.98-11.48,7.46-25.77.82-37.26-6.76-11.7-19.19-18.97-32.77-19.12l-59.41-.63c-5.61-.06-10.74-3.62-12.69-7.2-2.76-5.04-3.11-10.8-.15-15.23,3.37-5.05,9.3-8.37,15.63-8.38l87.76-.11-.11-20.75-86.47.34c-12.9.05-24.91,4.72-32.9,14.91-8.66,11.04-10.1,26.98-2.97,39.3,5.86,10.13,16.94,16.85,28.73,16.95l54.93.45c3.92.03,7.7.46,11.27,1.57,8.14,2.53,12.78,9.25,11.85,17.96-.62,5.83-6.63,13.89-14.78,13.94l-95.21.6.07,20.75,94.01-.5ZM875.33,399.31l74.2-.55-.08-20.57-73.35.2c-31.21.08-59.63,22.7-63.43,54.49l22.6.11c2.54-18.73,21.87-33.53,40.06-33.67ZM1445.02,378.44l-24.72-.13-50.08,94.7-51-94.82-24.39.3,33.87,62.8,29.46,54.1-32.63,61.82,24.79.49,94.69-179.27ZM873.52,483.96c-5.82-.02-10.92-2.07-15.59-3.9-14.55-5.73-23-19.3-22.94-34.96h-22.71c1.09,32.49,25.51,57.52,58.47,59.28l78.78.6-.21-20.8-75.81-.21Z"/>
-                    <g>
-                        <g>
-                            <path class="n3" d="M1165.99,491.62l-.28,65.37-21.65.24-.09-174.89,21.54-.09.73,12.47c21.56-19.36,58-21.92,83.94-11.99,23.87,9.14,39.65,30.79,40.87,56.15,1.31,27.04-12.73,50.92-37.48,61.83-16.04,6.59-33.16,8.54-50.56,6.11-13.48-1.37-24.73-7.04-37.04-15.2ZM1245.61,481.03c23.45-12.47,31.26-42.24,16.07-63.68-10.14-14.3-26.54-19.63-43.69-19.76-19.03-.14-37.78,6.8-47.53,23.94-8.22,14.46-6.92,33.62,2.94,46.96s24.89,18.47,40.56,18.8c11.18.23,21.38-.8,31.65-6.26Z"/>
-                            <path class="n3" d="M1013.29,502.27c-22.29-8.34-36.55-26.54-40.36-49.24-4.9-29.23,9.57-57.19,37-69.29,21.99-9.7,47.63-9.81,69.9-.74,25.18,10.26,40.66,34.04,40.23,60.44-.42,26.11-16.47,49.49-41.95,58.78-20.68,7.54-43.71,7.94-64.82.05ZM1070.88,482.52c16.48-6.99,26.43-21.68,27.16-38.14s-8.03-32.8-23.85-40.68c-16.53-8.24-36.71-8.6-53.63-1.31-17.33,7.47-27.57,23.9-26.65,41.96.9,17.61,11.42,32.58,28.83,39.13,15.21,5.73,32.61,5.63,48.14-.96Z"/>
-                            <polygon class="n3" points="1445.02 378.44 1350.33 557.7 1325.54 557.21 1358.17 495.39 1328.71 441.29 1294.84 378.49 1319.23 378.19 1370.23 473.01 1420.31 378.31 1445.02 378.44"/>
-                            <g>
-                                <path class="n3" d="M873.52,483.96l75.81.21.21,20.8-78.78-.6c-32.96-1.75-57.38-26.79-58.47-59.28h22.71c-.06,15.67,8.39,29.23,22.94,34.96,4.66,1.84,9.76,3.89,15.59,3.9Z"/>
-                                <path class="n3" d="M875.33,399.31c-18.19.14-37.52,14.95-40.06,33.67l-22.6-.11c3.8-31.79,32.22-54.4,63.43-54.49l73.35-.2.08,20.57-74.2.55Z"/>
-                            </g>
-                        </g>
-                        <g>
-                            <path class="n2" d="M428.95,504.92c-27.63,6.29-59.01,2.79-79.77-17.16-23.95-23.01-25.86-61.5-4.22-86.79,12.62-14.76,30.82-22.59,49.92-24.15,24.54-1.02,43.29,1.01,63.27,16.95l.31-55.82,21.7.08.1,166.5-21.87.09-.53-14.97c-8.39,7.79-17.88,12.75-28.92,15.26ZM445.59,472.45c16.39-16.05,17.65-42.85,1.92-59.91-16.89-18.3-51.27-19.66-71.62-8.79-14.13,7.55-22.95,21.04-23.54,36.14-.62,15.54,6.41,29.52,19.52,38.26,20.41,13.6,54.52,13.11,73.73-5.7Z"/>
-                            <path class="n2" d="M602.22,504.41l-94.01.5-.07-20.75,95.21-.6c8.15-.05,14.16-8.11,14.78-13.94.93-8.71-3.72-15.43-11.85-17.96-3.58-1.11-7.36-1.54-11.27-1.57l-54.93-.45c-11.79-.1-22.86-6.82-28.73-16.95-7.13-12.32-5.69-28.26,2.97-39.3,7.99-10.18,20-14.85,32.9-14.91l86.47-.34.11,20.75-87.76.11c-6.32,0-12.26,3.33-15.63,8.38-2.96,4.44-2.61,10.19.15,15.23,1.96,3.57,7.08,7.14,12.69,7.2l59.41.63c13.58.15,26.01,7.42,32.77,19.12,6.64,11.49,6.16,25.77-.82,37.26-6.6,10.86-18.82,17.52-32.38,17.59Z"/>
-                            <path class="n2" d="M803.23,496.07c3.23,3.28,5.72,5.34,7.79,8.77l-29.82-.09-62.39-63.44-29.71,23.23-.24,40.23-21.84-.05v-166.66s21.89-.03,21.89-.03l.08,99.51,72.7-59.1,34.81-.1-60.97,49.05,67.7,68.69Z"/>
-                        </g>
-                    </g>
-                </svg>
-            </a>
-            <nav class="nav-links">
-                <a href="#features">Features</a>
-                <a href="#how-it-works">How it works</a>
-                <a href="https://github.com/marirs/dskcopy" class="btn btn-outline" target="_blank" rel="noopener">GitHub</a>
-            </nav>
-            <button class="nav-hamburger" aria-label="Toggle menu" aria-expanded="false">
-                <span></span><span></span><span></span>
-            </button>
-        </div>
-    </header>
+<section id="features" class="fade-in">
+  <div class="section-eyebrow">Features</div>
+  <h2 class="section-title">Everything you need. Nothing you don't.</h2>
+  <p class="section-lead">dskcopy focuses on one job — writing disk images to removable drives — and gets out of your way.</p>
+  <div class="features">
+    <div class="feature">
+      <div class="feature-icon">⚡</div>
+      <h3>Streaming writes</h3>
+      <p>Decompresses GZ, XZ, ZIP, BZ2 on the fly. No need to extract first.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🛡</div>
+      <h3>Safe by default</h3>
+      <p>Lists only removable drives. System volumes are hidden unless explicitly requested.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">✅</div>
+      <h3>Verified writes</h3>
+      <p>Byte-by-byte or SHA-256 verification after flashing, so you know it landed clean.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🪟</div>
+      <h3>Windows ISOs</h3>
+      <p>Dual-partition Windows install media with optional autounattend bypass for TPM/Secure Boot.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🍎</div>
+      <h3>macOS installers</h3>
+      <p>Handles DMG installers via <code>createinstallmedia</code> for bootable macOS USBs.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🧪</div>
+      <h3>Fake flash detection</h3>
+      <p>Built-in bad-block scan catches counterfeit USBs that misreport capacity.</p>
+    </div>
+  </div>
+</section>
 
-    <!-- HERO -->
-    <section class="hero">
-        <div class="container hero-inner">
-            <div class="hero-badge reveal">
-                <span class="badge-dot"></span>
-                Written in Rust &middot; Single binary &middot; No installation needed
-            </div>
+<section id="cli" class="fade-in">
+  <div class="section-eyebrow">CLI</div>
+  <h2 class="section-title">Scriptable. Predictable.</h2>
+  <p class="section-lead">Every GUI action is available on the command line — perfect for CI, automation, and remote provisioning.</p>
+  <div class="cli-card">
+    <div class="cli-card-head">
+      <span class="cli-dot r"></span><span class="cli-dot y"></span><span class="cli-dot g"></span>
+      <span style="color: var(--text-muted); font-size: 12px; font-family: 'JetBrains Mono', monospace; margin-left: 8px;">~/iso</span>
+    </div>
+<pre><span class="cm"># list detected removable drives</span>
+<span class="cmd">$</span> <span class="arg">dskcopy-cli list-drives</span>
 
-            <h1 class="hero-headline reveal" style="--delay:.12s">
-                Flash drives. <span class="accent">Instantly.</span>
-            </h1>
-            <p class="hero-sub reveal" style="--delay:.2s">
-                Cross-platform bootable media creator built in Rust. One binary, zero friction —
-                flash ISOs, DMGs and compressed images at full hardware speed.
-            </p>
+<span class="cm"># flash an image to a target drive with byte-by-byte verify</span>
+<span class="cmd">$</span> <span class="arg">dskcopy-cli flash ./ubuntu-24.04.iso /dev/disk4</span>
 
-            <div class="cta-row reveal" style="--delay:.28s">
-                <a href="/download/macos" class="btn btn-primary">
-                    <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
-                    macOS
-                </a>
-                <a href="/download/linux" class="btn btn-primary">
-                    <svg class="btn-icon" viewBox="0 0 448 512" fill="currentColor" aria-hidden="true"><path d="M220.8 123.3c1 .5 1.8 1.7 3 1.7 1.1 0 2.8-.4 2.9-1.5.2-1.4-1.9-2.3-3.2-2.9-1.7-.7-3.9-1-5.5-.1-.4.2-.8.7-.6 1.1.3 1.3 2.3 1.1 3.4 1.7zm-21.9 1.7c1.2 0 2-1.2 3-1.7 1.1-.6 3.1-.4 3.5-1.6.2-.4-.2-.9-.6-1.1-1.6-.9-3.8-.6-5.5.1-1.3.6-3.4 1.5-3.2 2.9.1 1 1.8 1.5 2.8 1.4zM420 403.8c-3.6-4-5.3-11.6-7.2-19.7-1.8-8.1-3.9-16.8-10.5-22.4-1.3-1.1-2.6-2.1-4-2.9-1.3-.8-2.7-1.5-4.1-2 9.2-27.3 5.6-54.5-3.7-79.1-11.4-30.1-31.3-56.4-46.5-74.4-17.1-21.5-33.7-41.9-33.4-68C311.1 85.4 315.7 36.6 281.2 12c-6.1-4.4-14.5-7.3-24.2-7.3-15.1 0-30.4 6.1-43.8 16.9C200.7 10.8 185.4 4.7 170.3 4.7c-9.7 0-18.1 2.9-24.2 7.3C111.6 36.6 116.2 85.4 116.6 135.3c.3 26.1-16.3 46.5-33.4 68-15.2 18-35.1 44.3-46.5 74.4-9.3 24.6-12.9 51.8-3.7 79.1-1.4.5-2.8 1.2-4.1 2-1.4.8-2.7 1.8-4 2.9-6.6 5.6-8.7 14.3-10.5 22.4-1.9 8.1-3.6 15.7-7.2 19.7-9.1 10.2-9 23.7 2.2 32.4 6.8 5.4 16.7 8.1 27.6 8.1 16.3 0 34.6-6.2 45.2-12.6 3.7-2.3 7.1-4.8 10.1-7.5 3-2.6 5.7-5.5 7.8-8.8 3.2-4.8 5-10.1 5.5-15.5.5-5.4-.3-10.9-2.2-16.1 17.9-2.3 37.5-3.5 57.2-3.5 19.7 0 39.3 1.2 57.2 3.5-1.9 5.2-2.7 10.7-2.2 16.1.5 5.4 2.3 10.7 5.5 15.5 2.1 3.2 4.8 6.2 7.8 8.8 3 2.7 6.4 5.2 10.1 7.5 10.6 6.4 28.9 12.6 45.2 12.6 10.9 0 20.8-2.7 27.6-8.1 11.2-8.7 11.3-22.2 2.2-32.4z"/></svg>
-                    Linux
-                </a>
-                <a href="/download/windows" class="btn btn-primary">
-                    <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
-                    Windows
-                </a>
-                <a href="https://github.com/marirs/dskcopy" class="btn btn-ghost" target="_blank" rel="noopener">
-                    <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
-                    View source
-                </a>
-            </div>
+<span class="cm"># flash an HTTPS URL directly, no manual download</span>
+<span class="cmd">$</span> <span class="arg">dskcopy-cli flash https://releases.ubuntu.com/24.04/ubuntu-24.04-desktop-amd64.iso /dev/disk4</span>
 
-            <!-- App window illustration -->
-            <div class="app-frame reveal" style="--delay:.38s" aria-hidden="true">
-                <div class="frame-chrome">
-                    <div class="chrome-dots">
-                        <span class="cdot cdot-red"></span>
-                        <span class="cdot cdot-yellow"></span>
-                        <span class="cdot cdot-green"></span>
-                    </div>
-                    <span class="chrome-title">dskcopy</span>
-                </div>
-                <div class="frame-body">
-                    <div class="tabs-row">
-                        <button class="tab tab-active">Source</button>
-                        <button class="tab">Drive</button>
-                        <button class="tab tab-flash">Flash</button>
-                    </div>
-                    <div class="frame-content">
-                        <div class="fc-row">
-                            <div class="fc-label">Image</div>
-                            <div class="fc-value">ubuntu-24.04-desktop-amd64.iso</div>
-                        </div>
-                        <div class="fc-row">
-                            <div class="fc-label">Size</div>
-                            <div class="fc-value">5.4 GB</div>
-                        </div>
-                        <div class="fc-row">
-                            <div class="fc-label">Target</div>
-                            <div class="fc-value fc-accent">/dev/sdb &mdash; SanDisk Ultra 32GB</div>
-                        </div>
-                        <div class="fc-divider"></div>
-                        <div class="fc-progress-wrap">
-                            <div class="fc-progress-meta">
-                                <span>Flashing&hellip;</span>
-                                <span class="fc-speed">120 MB/s</span>
-                            </div>
-                            <div class="fc-bar-track">
-                                <div class="fc-bar" id="animBar"></div>
-                            </div>
-                            <div class="fc-pct" id="animPct">74%</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+<span class="cm"># write the same image to multiple USBs in parallel</span>
+<span class="cmd">$</span> <span class="arg">dskcopy-cli flash ./image.img /dev/disk2 /dev/disk3 /dev/disk4</span>
 
-    <!-- FEATURES -->
-    <section id="features" class="section-features">
-        <div class="container">
-            <p class="section-eyebrow reveal">Why dskcopy</p>
-            <h2 class="section-title reveal">Everything you need. Nothing you don&rsquo;t.</h2>
-            <div class="features-grid">
-                <div class="feat-card reveal" style="--delay:.04s">
-                    <div class="feat-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-                    </div>
-                    <h3>Cross-Platform</h3>
-                    <p>Native on Windows, Linux and macOS. No runtime dependencies, no Electron, no bloat.</p>
-                </div>
-                <div class="feat-card reveal" style="--delay:.08s">
-                    <div class="feat-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                    </div>
-                    <h3>Single Binary</h3>
-                    <p>Download and run. Assets are embedded at compile time — one file, zero setup.</p>
-                </div>
-                <div class="feat-card reveal" style="--delay:.12s">
-                    <div class="feat-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                    </div>
-                    <h3>Blazing Fast</h3>
-                    <p>Rust core with optimized block I/O pushes your USB to its hardware ceiling.</p>
-                </div>
-                <div class="feat-card reveal" style="--delay:.16s">
-                    <div class="feat-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                    </div>
-                    <h3>Verified Writes</h3>
-                    <p>Bit-for-bit verification after every flash. Know your bootable media is perfect.</p>
-                </div>
-                <div class="feat-card reveal" style="--delay:.20s">
-                    <div class="feat-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    </div>
-                    <h3>CLI &amp; GUI</h3>
-                    <p>Full-featured command-line mode for scripts and CI, plus a clean GUI for humans.</p>
-                </div>
-                <div class="feat-card reveal" style="--delay:.24s">
-                    <div class="feat-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-                    </div>
-                    <h3>Broad Format Support</h3>
-                    <p>ISO, DMG, IMG. Transparently decompresses .gz, .xz and .zst archives on the fly.</p>
-                </div>
-                <div class="feat-card reveal" style="--delay:.28s">
-                    <div class="feat-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
-                    </div>
-                    <h3>Flash from URL</h3>
-                    <p>Point dskcopy at a download URL. It streams directly to disk — no temp file required.</p>
-                </div>
-                <div class="feat-card reveal" style="--delay:.32s">
-                    <div class="feat-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                    </div>
-                    <h3>Safe Drive Detection</h3>
-                    <p>Smart heuristics filter out system disks. Accidental OS overwrites are virtually impossible.</p>
-                </div>
-            </div>
-        </div>
-    </section>
+<span class="cm"># scan a drive for bad sectors / fake-flash capacity</span>
+<span class="cmd">$</span> <span class="arg">dskcopy-cli check /dev/disk4 --quick</span></pre>
+  </div>
+</section>
 
-    <!-- HOW IT WORKS -->
-    <section id="how-it-works" class="section-how">
-        <div class="container">
-            <p class="section-eyebrow reveal">How it works</p>
-            <h2 class="section-title reveal">Three steps. Done.</h2>
-            <div class="steps-track">
-                <div class="step-item reveal" style="--delay:.04s">
-                    <div class="step-num">01</div>
-                    <div class="step-body">
-                        <h3>Select Source</h3>
-                        <p>Choose a local ISO/IMG/DMG file — or paste a URL to flash directly from the web.</p>
-                    </div>
-                </div>
-                <div class="step-connector reveal" style="--delay:.10s" aria-hidden="true">
-                    <svg viewBox="0 0 48 12" fill="none"><path d="M0 6h44M38 1l6 5-6 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </div>
-                <div class="step-item reveal" style="--delay:.14s">
-                    <div class="step-num">02</div>
-                    <div class="step-body">
-                        <h3>Select Drive</h3>
-                        <p>Pick your USB target. System drives are hidden by default — no guard-rails to bypass.</p>
-                    </div>
-                </div>
-                <div class="step-connector reveal" style="--delay:.20s" aria-hidden="true">
-                    <svg viewBox="0 0 48 12" fill="none"><path d="M0 6h44M38 1l6 5-6 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </div>
-                <div class="step-item step-item-accent reveal" style="--delay:.24s">
-                    <div class="step-num">03</div>
-                    <div class="step-body">
-                        <h3>Flash</h3>
-                        <p>Hit flash. dskcopy unmounts, writes block-by-block and verifies. You reboot. It works.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+<section id="download" class="fade-in">
+  <div class="section-eyebrow">Download</div>
+  <h2 class="section-title">Get dskcopy</h2>
+  <p class="section-lead">Binaries are produced by GitHub Actions for every release tag. Verify with the matching <code>.sha256</code> sidecar.</p>
+  <div class="dl-grid">
+    <div class="dl-card">
+      <h3>macOS</h3>
+      <div class="arch-row" id="dlMac"></div>
+    </div>
+    <div class="dl-card">
+      <h3>Windows</h3>
+      <div class="arch-row" id="dlWin"></div>
+    </div>
+    <div class="dl-card">
+      <h3>Linux</h3>
+      <div class="arch-row" id="dlLin"></div>
+    </div>
+  </div>
+</section>
 
-    <!-- DOWNLOAD -->
-    <section id="download" class="section-download">
-        <div class="container download-inner">
-            <h2 class="reveal">Ready to flash?</h2>
-            <p class="reveal" style="--delay:.06s">Free and open source. Always.</p>
-            <div class="dl-row reveal" style="--delay:.12s">
-                <a href="/download/macos" class="dl-btn">
-                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
-                    <span>
-                        <strong>macOS</strong>
-                        <em>Apple Silicon &amp; Intel</em>
-                    </span>
-                </a>
-                <a href="/download/linux" class="dl-btn">
-                    <svg viewBox="0 0 448 512" fill="currentColor" aria-hidden="true"><path d="M220.8 123.3c1 .5 1.8 1.7 3 1.7 1.1 0 2.8-.4 2.9-1.5.2-1.4-1.9-2.3-3.2-2.9-1.7-.7-3.9-1-5.5-.1-.4.2-.8.7-.6 1.1.3 1.3 2.3 1.1 3.4 1.7zm-21.9 1.7c1.2 0 2-1.2 3-1.7 1.1-.6 3.1-.4 3.5-1.6.2-.4-.2-.9-.6-1.1-1.6-.9-3.8-.6-5.5.1-1.3.6-3.4 1.5-3.2 2.9.1 1 1.8 1.5 2.8 1.4zM420 403.8c-3.6-4-5.3-11.6-7.2-19.7-1.8-8.1-3.9-16.8-10.5-22.4-1.3-1.1-2.6-2.1-4-2.9-1.3-.8-2.7-1.5-4.1-2 9.2-27.3 5.6-54.5-3.7-79.1-11.4-30.1-31.3-56.4-46.5-74.4-17.1-21.5-33.7-41.9-33.4-68C311.1 85.4 315.7 36.6 281.2 12c-6.1-4.4-14.5-7.3-24.2-7.3-15.1 0-30.4 6.1-43.8 16.9C200.7 10.8 185.4 4.7 170.3 4.7c-9.7 0-18.1 2.9-24.2 7.3C111.6 36.6 116.2 85.4 116.6 135.3c.3 26.1-16.3 46.5-33.4 68-15.2 18-35.1 44.3-46.5 74.4-9.3 24.6-12.9 51.8-3.7 79.1-1.4.5-2.8 1.2-4.1 2-1.4.8-2.7 1.8-4 2.9-6.6 5.6-8.7 14.3-10.5 22.4-1.9 8.1-3.6 15.7-7.2 19.7-9.1 10.2-9 23.7 2.2 32.4 6.8 5.4 16.7 8.1 27.6 8.1 16.3 0 34.6-6.2 45.2-12.6 3.7-2.3 7.1-4.8 10.1-7.5 3-2.6 5.7-5.5 7.8-8.8 3.2-4.8 5-10.1 5.5-15.5.5-5.4-.3-10.9-2.2-16.1 17.9-2.3 37.5-3.5 57.2-3.5 19.7 0 39.3 1.2 57.2 3.5-1.9 5.2-2.7 10.7-2.2 16.1.5 5.4 2.3 10.7 5.5 15.5 2.1 3.2 4.8 6.2 7.8 8.8 3 2.7 6.4 5.2 10.1 7.5 10.6 6.4 28.9 12.6 45.2 12.6 10.9 0 20.8-2.7 27.6-8.1 11.2-8.7 11.3-22.2 2.2-32.4z"/></svg>
-                    <span>
-                        <strong>Linux</strong>
-                        <em>x86_64 &amp; aarch64</em>
-                    </span>
-                </a>
-                <a href="/download/windows" class="dl-btn">
-                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
-                    <span>
-                        <strong>Windows</strong>
-                        <em>64-bit EXE</em>
-                    </span>
-                </a>
-            </div>
-        </div>
-    </section>
+<footer>
+  <p>dskcopy · MIT · <a href="https://github.com/{{ repo }}" target="_blank" rel="noopener">github.com/{{ repo }}</a></p>
+</footer>
 
-    <!-- FOOTER -->
-    <footer class="site-footer">
-        <div class="container footer-inner">
-            <a href="/" class="footer-logo" aria-label="dskcopy home">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1774 887" class="footer-svg" aria-hidden="true">
-                    <defs><style>.f1{fill:none}.f2{fill:#585b70}.f3{fill:#1bcf96}</style></defs>
-                    <path class="f1" d="M0,0h1774v887H0V0ZM428.95,504.92c11.04-2.51,20.52-7.47,28.92-15.26l.53,14.97,21.87-.09-.1-166.5-21.7-.08-.31,55.82c-19.98-15.95-38.73-17.98-63.27-16.95-19.09,1.56-37.29,9.39-49.92,24.15-21.64,25.29-19.73,63.78,4.22,86.79,20.76,19.95,52.14,23.45,79.77,17.16ZM803.23,496.07l-67.7-68.69,60.97-49.05-34.81.1-72.7,59.1-.08-99.51-21.9.03v166.66s21.84.05,21.84.05l.24-40.23,29.71-23.23,62.39,63.44,29.82.09c-2.06-3.43-4.56-5.49-7.79-8.77ZM1013.29,502.27c21.11,7.89,44.13,7.49,64.82-.05,25.48-9.29,41.53-32.67,41.95-58.78.43-26.4-15.05-50.18-40.23-60.44-22.27-9.08-47.9-8.96-69.9.74-27.43,12.09-41.91,40.06-37,69.29,3.81,22.71,18.07,40.91,40.36,49.24ZM1165.99,491.62c12.31,8.16,23.56,13.83,37.04,15.2,17.4,2.43,34.52.47,50.56-6.11,24.75-10.9,38.79-34.79,37.48-61.83-1.23-25.36-17-47.01-40.87-56.15-25.94-9.93-62.38-7.37-83.94,11.99l-.73-12.47-21.54.09.09,174.89,21.65-.24.28-65.37ZM602.22,504.41c13.55-.07,25.78-6.73,32.38-17.59,6.98-11.48,7.46-25.77.82-37.26-6.76-11.7-19.19-18.97-32.77-19.12l-59.41-.63c-5.61-.06-10.74-3.62-12.69-7.2-2.76-5.04-3.11-10.8-.15-15.23,3.37-5.05,9.3-8.37,15.63-8.38l87.76-.11-.11-20.75-86.47.34c-12.9.05-24.91,4.72-32.9,14.91-8.66,11.04-10.1,26.98-2.97,39.3,5.86,10.13,16.94,16.85,28.73,16.95l54.93.45c3.92.03,7.7.46,11.27,1.57,8.14,2.53,12.78,9.25,11.85,17.96-.62,5.83-6.63,13.89-14.78,13.94l-95.21.6.07,20.75,94.01-.5ZM875.33,399.31l74.2-.55-.08-20.57-73.35.2c-31.21.08-59.63,22.7-63.43,54.49l22.6.11c2.54-18.73,21.87-33.53,40.06-33.67ZM1445.02,378.44l-24.72-.13-50.08,94.7-51-94.82-24.39.3,33.87,62.8,29.46,54.1-32.63,61.82,24.79.49,94.69-179.27ZM873.52,483.96c-5.82-.02-10.92-2.07-15.59-3.9-14.55-5.73-23-19.3-22.94-34.96h-22.71c1.09,32.49,25.51,57.52,58.47,59.28l78.78.6-.21-20.8-75.81-.21Z"/>
-                    <g>
-                        <g>
-                            <path class="f3" d="M1165.99,491.62l-.28,65.37-21.65.24-.09-174.89,21.54-.09.73,12.47c21.56-19.36,58-21.92,83.94-11.99,23.87,9.14,39.65,30.79,40.87,56.15,1.31,27.04-12.73,50.92-37.48,61.83-16.04,6.59-33.16,8.54-50.56,6.11-13.48-1.37-24.73-7.04-37.04-15.2ZM1245.61,481.03c23.45-12.47,31.26-42.24,16.07-63.68-10.14-14.3-26.54-19.63-43.69-19.76-19.03-.14-37.78,6.8-47.53,23.94-8.22,14.46-6.92,33.62,2.94,46.96s24.89,18.47,40.56,18.8c11.18.23,21.38-.8,31.65-6.26Z"/>
-                            <path class="f3" d="M1013.29,502.27c-22.29-8.34-36.55-26.54-40.36-49.24-4.9-29.23,9.57-57.19,37-69.29,21.99-9.7,47.63-9.81,69.9-.74,25.18,10.26,40.66,34.04,40.23,60.44-.42,26.11-16.47,49.49-41.95,58.78-20.68,7.54-43.71,7.94-64.82.05ZM1070.88,482.52c16.48-6.99,26.43-21.68,27.16-38.14s-8.03-32.8-23.85-40.68c-16.53-8.24-36.71-8.6-53.63-1.31-17.33,7.47-27.57,23.9-26.65,41.96.9,17.61,11.42,32.58,28.83,39.13,15.21,5.73,32.61,5.63,48.14-.96Z"/>
-                            <polygon class="f3" points="1445.02 378.44 1350.33 557.7 1325.54 557.21 1358.17 495.39 1328.71 441.29 1294.84 378.49 1319.23 378.19 1370.23 473.01 1420.31 378.31 1445.02 378.44"/>
-                            <g>
-                                <path class="f3" d="M873.52,483.96l75.81.21.21,20.8-78.78-.6c-32.96-1.75-57.38-26.79-58.47-59.28h22.71c-.06,15.67,8.39,29.23,22.94,34.96,4.66,1.84,9.76,3.89,15.59,3.9Z"/>
-                                <path class="f3" d="M875.33,399.31c-18.19.14-37.52,14.95-40.06,33.67l-22.6-.11c3.8-31.79,32.22-54.4,63.43-54.49l73.35-.2.08,20.57-74.2.55Z"/>
-                            </g>
-                        </g>
-                        <g>
-                            <path class="f2" d="M428.95,504.92c-27.63,6.29-59.01,2.79-79.77-17.16-23.95-23.01-25.86-61.5-4.22-86.79,12.62-14.76,30.82-22.59,49.92-24.15,24.54-1.02,43.29,1.01,63.27,16.95l.31-55.82,21.7.08.1,166.5-21.87.09-.53-14.97c-8.39,7.79-17.88,12.75-28.92,15.26ZM445.59,472.45c16.39-16.05,17.65-42.85,1.92-59.91-16.89-18.3-51.27-19.66-71.62-8.79-14.13,7.55-22.95,21.04-23.54,36.14-.62,15.54,6.41,29.52,19.52,38.26,20.41,13.6,54.52,13.11,73.73-5.7Z"/>
-                            <path class="f2" d="M602.22,504.41l-94.01.5-.07-20.75,95.21-.6c8.15-.05,14.16-8.11,14.78-13.94.93-8.71-3.72-15.43-11.85-17.96-3.58-1.11-7.36-1.54-11.27-1.57l-54.93-.45c-11.79-.1-22.86-6.82-28.73-16.95-7.13-12.32-5.69-28.26,2.97-39.3,7.99-10.18,20-14.85,32.9-14.91l86.47-.34.11,20.75-87.76.11c-6.32,0-12.26,3.33-15.63,8.38-2.96,4.44-2.61,10.19.15,15.23,1.96,3.57,7.08,7.14,12.69,7.2l59.41.63c13.58.15,26.01,7.42,32.77,19.12,6.64,11.49,6.16,25.77-.82,37.26-6.6,10.86-18.82,17.52-32.38,17.59Z"/>
-                            <path class="f2" d="M803.23,496.07c3.23,3.28,5.72,5.34,7.79,8.77l-29.82-.09-62.39-63.44-29.71,23.23-.24,40.23-21.84-.05v-166.66s21.89-.03,21.89-.03l.08,99.51,72.7-59.1,34.81-.1-60.97,49.05,67.7,68.69Z"/>
-                        </g>
-                    </g>
-                </svg>
-            </a>
-            <div class="footer-links">
-                <a href="https://github.com/marirs/dskcopy" target="_blank" rel="noopener">GitHub</a>
-                <a href="#">MIT License</a>
-            </div>
-            <p class="footer-copy">© 2026 dskcopy. Open source under MIT license.</p>
-        </div>
-    </section>
+<script>
+const REPO = "{{ repo }}";
+const TAG  = "v{{ version }}";
 
-    <script src="/static/js/main.js"></script>
+const D = {
+  gui: {
+    macos: [
+      { label: "macOS (Apple Silicon)", arch: "aarch64", file: "dskcopy-gui-macos-aarch64.app.tar.gz" },
+      { label: "macOS (Intel)",         arch: "x86_64",  file: "dskcopy-gui-macos-x86_64.app.tar.gz"  },
+    ],
+    windows: [
+      { label: "Windows (x86_64)", arch: "x86_64",  file: "dskcopy-gui-windows-x86_64.zip"  },
+      { label: "Windows (ARM64)",  arch: "aarch64", file: "dskcopy-gui-windows-aarch64.zip" },
+    ],
+    linux: [
+      { label: "Linux (x86_64)", arch: "x86_64", file: "dskcopy-gui-linux-x86_64.tar.gz" },
+    ],
+  },
+  cli: {
+    macos: [
+      { label: "macOS (Apple Silicon)", arch: "aarch64", file: "dskcopy-cli-macos-aarch64.tar.gz" },
+      { label: "macOS (Intel)",         arch: "x86_64",  file: "dskcopy-cli-macos-x86_64.tar.gz"  },
+    ],
+    windows: [
+      { label: "Windows (x86_64)", arch: "x86_64",  file: "dskcopy-cli-windows-x86_64.zip"  },
+      { label: "Windows (ARM64)",  arch: "aarch64", file: "dskcopy-cli-windows-aarch64.zip" },
+    ],
+    linux: [
+      { label: "Linux (x86_64)",  arch: "x86_64",  file: "dskcopy-cli-linux-x86_64.tar.gz"  },
+      { label: "Linux (aarch64)", arch: "aarch64", file: "dskcopy-cli-linux-aarch64.tar.gz" },
+    ],
+  },
+};
+
+function url(file) { return `https://github.com/${REPO}/releases/download/${TAG}/${file}`; }
+
+function detectOS() {
+  const ua = navigator.userAgent.toLowerCase();
+  const p  = (navigator.platform || "").toLowerCase();
+  if (ua.includes("mac") || p.includes("mac")) return "macos";
+  if (ua.includes("win") || p.includes("win")) return "windows";
+  return "linux";
+}
+
+const osNames = { macos: "macOS", windows: "Windows", linux: "Linux" };
+const userOS  = detectOS();
+
+function addItem(container, item) {
+  const a = document.createElement("a");
+  a.href = url(item.file);
+  a.className = "dropdown-item";
+  a.innerHTML = `${item.label} <span class="arch">${item.arch}</span>`;
+  container.appendChild(a);
+}
+
+function fillDropdown() {
+  const g = document.getElementById("guiList");
+  const c = document.getElementById("cliList");
+  Object.values(D.gui).forEach(arr => arr.forEach(i => addItem(g, i)));
+  Object.values(D.cli).forEach(arr => arr.forEach(i => addItem(c, i)));
+}
+
+function fillDownloadCards() {
+  const mac = document.getElementById("dlMac");
+  const win = document.getElementById("dlWin");
+  const lin = document.getElementById("dlLin");
+  const row = (cont, item) => {
+    const a = document.createElement("a");
+    a.href = url(item.file);
+    a.className = "arch-link";
+    a.innerHTML = `<span>${item.label}</span><span class="arch">${item.arch}</span>`;
+    cont.appendChild(a);
+  };
+  [...D.gui.macos, ...D.cli.macos].forEach(i => row(mac, i));
+  [...D.gui.windows, ...D.cli.windows].forEach(i => row(win, i));
+  [...D.gui.linux, ...D.cli.linux].forEach(i => row(lin, i));
+}
+
+function init() {
+  document.getElementById("osName").textContent = osNames[userOS];
+  const primary = D.gui[userOS][0];
+  const dlBtn   = document.getElementById("dlBtn");
+  const dlLabel = document.getElementById("dlLabel");
+  dlLabel.textContent = `Download for ${osNames[userOS]}`;
+  dlBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    document.getElementById("dlMenu").classList.toggle("open");
+  });
+  document.addEventListener("click", () => {
+    document.getElementById("dlMenu").classList.remove("open");
+  });
+  fillDropdown();
+  fillDownloadCards();
+}
+
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add("visible"); });
+}, { threshold: 0.1 });
+document.querySelectorAll(".fade-in").forEach(el => io.observe(el));
+
+init();
+</script>
+
 </body>
 </html>

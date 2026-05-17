@@ -1,0 +1,226 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ── CLI builds ───────────────────────────────────────────────────────
+  build-cli:
+    name: CLI (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: dskcopy-cli-linux-x86_64
+            ext: ""
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            artifact: dskcopy-cli-linux-aarch64
+            ext: ""
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: dskcopy-cli-macos-aarch64
+            ext: ""
+          - os: macos-14
+            target: x86_64-apple-darwin
+            artifact: dskcopy-cli-macos-x86_64
+            ext: ""
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: dskcopy-cli-windows-x86_64
+            ext: ".exe"
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+            artifact: dskcopy-cli-windows-aarch64
+            ext: ".exe"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: release-cli-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: release-cli-${{ matrix.target }}-cargo-
+
+      - name: Build CLI binary
+        run: cargo build --release -p dskcopy --bin dskcopy-cli --target ${{ matrix.target }}
+
+      - name: Package (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czf ../../../${{ matrix.artifact }}.tar.gz dskcopy-cli
+          cd ../../..
+          shasum -a 256 ${{ matrix.artifact }}.tar.gz > ${{ matrix.artifact }}.tar.gz.sha256
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "target/${{ matrix.target }}/release/dskcopy-cli${{ matrix.ext }}" -DestinationPath "${{ matrix.artifact }}.zip"
+          (Get-FileHash "${{ matrix.artifact }}.zip" -Algorithm SHA256).Hash.ToLower() + "  ${{ matrix.artifact }}.zip" | Out-File -Encoding ascii "${{ matrix.artifact }}.zip.sha256"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.artifact }}.tar.gz
+            ${{ matrix.artifact }}.tar.gz.sha256
+            ${{ matrix.artifact }}.zip
+            ${{ matrix.artifact }}.zip.sha256
+          if-no-files-found: ignore
+
+  # ── GUI builds ───────────────────────────────────────────────────────
+  build-gui:
+    name: GUI (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: dskcopy-gui-linux-x86_64
+            ext: ""
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: dskcopy-gui-macos-aarch64
+            ext: ""
+            bundle: true
+          - os: macos-14
+            target: x86_64-apple-darwin
+            artifact: dskcopy-gui-macos-x86_64
+            ext: ""
+            bundle: true
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: dskcopy-gui-windows-x86_64
+            ext: ".exe"
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+            artifact: dskcopy-gui-windows-aarch64
+            ext: ".exe"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: release-gui-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: release-gui-${{ matrix.target }}-cargo-
+
+      - name: Install GUI dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libgtk-3-dev libfontconfig1-dev
+
+      - name: Build GUI binary
+        run: cargo build --release -p dskcopy --features gui --bin dskcopy-gui --target ${{ matrix.target }}
+
+      - name: Build macOS .app bundle
+        if: matrix.bundle
+        run: |
+          cargo install cargo-bundle --quiet --force
+          cargo bundle --release -p dskcopy --features gui --bin dskcopy-gui --target ${{ matrix.target }}
+
+      - name: Package macOS .app bundle
+        if: matrix.bundle
+        run: |
+          cd "target/${{ matrix.target }}/release/bundle/osx"
+          tar czf "../../../../../${{ matrix.artifact }}.app.tar.gz" "dskcopy.app"
+          cd ../../../../..
+          shasum -a 256 "${{ matrix.artifact }}.app.tar.gz" > "${{ matrix.artifact }}.app.tar.gz.sha256"
+
+      - name: Package binary (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p staging
+          cp target/${{ matrix.target }}/release/dskcopy-gui staging/
+          cp assets/dskcopy-gui.desktop staging/
+          cp assets/icon_256.png staging/dskcopy.png
+          cd staging
+          tar czf ../${{ matrix.artifact }}.tar.gz dskcopy-gui dskcopy-gui.desktop dskcopy.png
+          cd ..
+          shasum -a 256 ${{ matrix.artifact }}.tar.gz > ${{ matrix.artifact }}.tar.gz.sha256
+          rm -rf staging
+
+      - name: Package binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "target/${{ matrix.target }}/release/dskcopy-gui${{ matrix.ext }}" -DestinationPath "${{ matrix.artifact }}.zip"
+          (Get-FileHash "${{ matrix.artifact }}.zip" -Algorithm SHA256).Hash.ToLower() + "  ${{ matrix.artifact }}.zip" | Out-File -Encoding ascii "${{ matrix.artifact }}.zip.sha256"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.artifact }}.tar.gz
+            ${{ matrix.artifact }}.tar.gz.sha256
+            ${{ matrix.artifact }}.app.tar.gz
+            ${{ matrix.artifact }}.app.tar.gz.sha256
+            ${{ matrix.artifact }}.zip
+            ${{ matrix.artifact }}.zip.sha256
+          if-no-files-found: ignore
+
+  # ── Create GitHub Release ────────────────────────────────────────────
+  release:
+    name: Create Release
+    needs: [build-cli, build-gui]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: List artifacts
+        run: find artifacts/ -type f | sort
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/**/*.tar.gz
+            artifacts/**/*.tar.gz.sha256
+            artifacts/**/*.zip
+            artifacts/**/*.zip.sha256

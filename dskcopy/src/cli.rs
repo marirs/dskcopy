@@ -445,19 +445,14 @@ fn do_check(target: &str, quick: bool) -> Result<(), String> {
 fn do_download(
     list: bool,
     version: Option<String>,
-    lang: String,
-    output: String,
+    _lang: String,
+    _output: String,
 ) -> Result<(), String> {
     if list {
-        println!("{:<20} {:<30} {}", "ID", "Name", "Supported Locales");
-        println!("{}", "-".repeat(80));
+        println!("{:<20} {}", "ID", "Name");
+        println!("{}", "-".repeat(60));
         for entry in download::list_catalog() {
-            println!(
-                "{:<20} {:<30} {}",
-                entry.id,
-                entry.name,
-                entry.locales.join(", ")
-            );
+            println!("{:<20} {}", entry.id, entry.name);
         }
         return Ok(());
     }
@@ -469,59 +464,11 @@ fn do_download(
     let entry = download::find_entry(&version_slug)
         .ok_or_else(|| format!("Unknown version '{}'. Use --list to see available versions.", version_slug))?;
 
-    let locale_lower = lang.to_lowercase();
-    if !entry.locales.contains(&locale_lower.as_str()) {
-        println!(
-            "WARNING: locale '{}' is not in the known locale list for '{}'. Attempting anyway...",
-            lang, entry.name
-        );
-    }
-
-    println!(
-        "Fetching download link for {} ({})...",
-        entry.name, lang
-    );
-
-    let url = download::get_download_url(entry, &locale_lower)
-        .map_err(|e| format!("Failed to get download URL: {e}"))?;
-
-    // Derive filename from URL or use a default
-    let filename = url
-        .split('/')
-        .last()
-        .and_then(|s| s.split('?').next())
-        .filter(|s| s.ends_with(".iso"))
-        .unwrap_or("windows.iso");
-
-    let out_path = if output.ends_with('/') || std::path::Path::new(&output).is_dir() {
-        format!("{}/{}", output.trim_end_matches('/'), filename)
-    } else {
-        output.clone()
-    };
-
-    println!("Downloading {} -> {}", url, out_path);
-
-    let pb = ProgressBar::new(100);
-    pb.set_style(
-        ProgressStyle::with_template(
-            "Downloading [{bar:40.cyan/blue}] {pos:>3}% {bytes}/{total_bytes} {binary_bytes_per_sec} ETA {eta}",
-        )
-        .unwrap()
-        .progress_chars("=>-"),
-    );
-
-    let pb2 = pb.clone();
-    let bytes = download::download_iso(&url, &out_path, move |done, total| {
-        if total > 0 {
-            let pos = (done * 100 / total).min(100);
-            pb2.set_length(100);
-            pb2.set_position(pos);
-        }
-    })
-    .map_err(|e| format!("Download failed: {e}"))?;
-
-    pb.finish_with_message("Done");
-    println!("Downloaded {} bytes to {}", bytes, out_path);
+    let url = download::get_windows_download_page(entry);
+    println!("Microsoft no longer supports automated ISO downloads.");
+    println!("Open the following page in a browser to download {}:", entry.name);
+    println!();
+    println!("  {}", url);
     Ok(())
 }
 
@@ -561,7 +508,12 @@ fn main() {
         Some(Commands::Download { list, version, lang, output }) => {
             do_download(list, version, lang, output)
         }
-        None => dskcopy_ui::launch().map_err(|e| format!("Failed to launch GUI: {e}")),
+        None => {
+            use clap::CommandFactory;
+            Cli::command().print_help().ok();
+            println!();
+            Ok(())
+        }
     };
     if let Err(err) = result {
         eprintln!("Error: {err}");

@@ -3,9 +3,36 @@ name = "dskcopy"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = []
+# Enable the GUI binary (pulls in Slint + winit).
+gui = ["dep:dskcopy-ui"]
+
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 dskcopy-core = { path = "../crates/dskcopy-core" }
 dskcopy-platform = { path = "../crates/dskcopy-platform" }
-dskcopy-ui = { path = "../crates/dskcopy-ui" }
+dskcopy-ui = { path = "../crates/dskcopy-ui", optional = true }
 indicatif = "0.17"
+
+[[bin]]
+name = "dskcopy-cli"
+path = "src/cli.rs"
+
+[[bin]]
+name = "dskcopy-gui"
+path = "src/gui.rs"
+required-features = ["gui"]
+
+# ── Packaging metadata ────────────────────────────────────────────────────────
+# cargo-bundle reads [package.metadata.bundle.bin.<binname>] when a package has
+# multiple binaries. Bundle only the GUI; the CLI ships as a bare executable.
+
+[package.metadata.bundle.bin.dskcopy-gui]
+name = "dskcopy"
+identifier = "com.marirs.dskcopy"
+icon = ["assets/dskcopy.icns", "assets/dskcopy-icon.svg"]
+category = "public.app-category.utilities"
+short_description = "Fast, safe disk image writer"
+long_description = "dskcopy is a cross-platform utility for flashing disk images to removable drives."
+osx_minimum_system_version = "10.15"

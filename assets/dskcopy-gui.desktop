@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=dskcopy
+GenericName=Disk Image Writer
+Comment=Flash ISO, IMG, DMG and other disk images to removable drives
+Exec=dskcopy-gui
+Icon=dskcopy
+Terminal=false
+Categories=Utility;System;Archiving;
+Keywords=disk;iso;usb;flash;image;writer;
+StartupWMClass=dskcopy

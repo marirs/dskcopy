@@ -6,8 +6,8 @@ use axum::{
     Router,
 };
 use rust_embed::RustEmbed;
-use tera::{Context, Tera};
 use std::sync::Arc;
+use tera::{Context, Tera};
 
 #[derive(RustEmbed)]
 #[folder = "static/"]
@@ -19,13 +19,17 @@ struct TemplateAsset;
 
 struct AppState {
     tera: Tera,
+    repo: String,
+    version: String,
 }
+
+const REPO_DEFAULT: &str = "marirs/dskcopy";
+const VERSION_DEFAULT: &str = env!("CARGO_PKG_VERSION");
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
 
-    // Initialize Tera templates from embedded files
     let mut tera = Tera::default();
     for file in TemplateAsset::iter() {
         if let Some(content) = TemplateAsset::get(&file) {
@@ -33,8 +37,12 @@ async fn main() {
             tera.add_raw_template(&file, content_str).unwrap();
         }
     }
-    
-    let state = Arc::new(AppState { tera });
+
+    let repo = std::env::var("DSKCOPY_REPO").unwrap_or_else(|_| REPO_DEFAULT.to_string());
+    let version =
+        std::env::var("DSKCOPY_VERSION").unwrap_or_else(|_| VERSION_DEFAULT.to_string());
+
+    let state = Arc::new(AppState { tera, repo, version });
 
     let app = Router::new()
         .route("/", get(index))
@@ -42,14 +50,19 @@ async fn main() {
         .route("/static/*file", get(static_handler))
         .with_state(state);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    tracing::info!("Listening on http://0.0.0.0:3000");
+    let bind = std::env::var("DSKCOPY_WEB_BIND").unwrap_or_else(|_| "0.0.0.0:3000".to_string());
+    let listener = tokio::net::TcpListener::bind(&bind).await.unwrap();
+    tracing::info!("Listening on http://{}", bind);
     axum::serve(listener, app).await.unwrap();
 }
 
-async fn index(axum::extract::State(state): axum::extract::State<Arc<AppState>>) -> impl IntoResponse {
-    let context = Context::new();
-    match state.tera.render("index.html", &context) {
+async fn index(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+) -> impl IntoResponse {
+    let mut ctx = Context::new();
+    ctx.insert("repo", &state.repo);
+    ctx.insert("version", &state.version);
+    match state.tera.render("index.html", &ctx) {
         Ok(rendered) => Html(rendered).into_response(),
         Err(e) => {
             tracing::error!("Template rendering error: {}", e);
@@ -58,20 +71,37 @@ async fn index(axum::extract::State(state): axum::extract::State<Arc<AppState>>)
     }
 }
 
-async fn download(Path(platform): Path<String>) -> impl IntoResponse {
-    // Redirect to actual GitHub releases or binary download links
-    let url = match platform.as_str() {
-        "windows" => "https://github.com/example/dskcopy/releases/latest/download/dskcopy-windows.exe",
-        "macos" => "https://github.com/example/dskcopy/releases/latest/download/dskcopy-macos.tar.gz",
-        "linux" => "https://github.com/example/dskcopy/releases/latest/download/dskcopy-linux.tar.gz",
-        _ => "/",
+/// Redirect /download/:platform → the matching GitHub release asset.
+/// Accepts shapes like `gui-macos-aarch64`, `cli-linux-x86_64`, `gui-windows-x86_64`.
+async fn download(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+    Path(platform): Path<String>,
+) -> impl IntoResponse {
+    let file = match platform.as_str() {
+        // GUI
+        "gui-macos-aarch64" => "dskcopy-gui-macos-aarch64.app.tar.gz",
+        "gui-macos-x86_64" => "dskcopy-gui-macos-x86_64.app.tar.gz",
+        "gui-windows-x86_64" => "dskcopy-gui-windows-x86_64.zip",
+        "gui-windows-aarch64" => "dskcopy-gui-windows-aarch64.zip",
+        "gui-linux-x86_64" => "dskcopy-gui-linux-x86_64.tar.gz",
+        // CLI
+        "cli-macos-aarch64" => "dskcopy-cli-macos-aarch64.tar.gz",
+        "cli-macos-x86_64" => "dskcopy-cli-macos-x86_64.tar.gz",
+        "cli-windows-x86_64" => "dskcopy-cli-windows-x86_64.zip",
+        "cli-windows-aarch64" => "dskcopy-cli-windows-aarch64.zip",
+        "cli-linux-x86_64" => "dskcopy-cli-linux-x86_64.tar.gz",
+        "cli-linux-aarch64" => "dskcopy-cli-linux-aarch64.tar.gz",
+        _ => return Redirect::temporary("/").into_response(),
     };
-    Redirect::temporary(url)
+    let url = format!(
+        "https://github.com/{}/releases/download/v{}/{}",
+        state.repo, state.version, file
+    );
+    Redirect::temporary(&url).into_response()
 }
 
 async fn static_handler(uri: Uri) -> impl IntoResponse {
     let path = uri.path().trim_start_matches("/static/");
-
     if let Some(content) = Asset::get(path) {
         let mime = mime_guess::from_path(path).first_or_octet_stream();
         ([(header::CONTENT_TYPE, mime.as_ref())], content.data).into_response()

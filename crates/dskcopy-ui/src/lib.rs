@@ -1,7 +1,6 @@
 slint::include_modules!();
 
 use dskcopy_core::detect::{detect_image_type, RawImageType};
-use dskcopy_core::download;
 use dskcopy_core::image::{flash, normalize_target_device, parse_image};
 use dskcopy_core::source::SourceDescriptor;
 use dskcopy_core::{
@@ -10,11 +9,9 @@ use dskcopy_core::{
 use dskcopy_platform::macos::MacOsBackend;
 use dskcopy_platform::{ListOptions, PlatformBackend};
 use i_slint_backend_winit::winit::event::WindowEvent;
-use slint::{ModelRc, SharedString, VecModel};
+use slint::{ModelRc, VecModel};
 use std::cell::RefCell;
-use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 // ── Drag-and-drop handler ─────────────────────────────────────────────────────
@@ -65,21 +62,6 @@ pub fn launch() -> Result<(), slint::PlatformError> {
     *pending_weak.lock().unwrap() = Some(app.as_weak());
 
     let state = Rc::new(RefCell::new(UiState::default()));
-    let download_cancel: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
-
-    // ── Populate ISO catalog & languages ───────────────────────────────────
-    {
-        let versions: Vec<SharedString> = download::list_catalog()
-            .iter()
-            .map(|e| SharedString::from(e.name))
-            .collect();
-        app.set_iso_versions(ModelRc::new(VecModel::from(versions)));
-        // Initialize languages from first entry
-        let langs = languages_for_index(0);
-        app.set_iso_language_names(ModelRc::new(VecModel::from(langs)));
-        app.set_iso_version_index(0);
-        app.set_iso_language_index(0);
-    }
 
     // Initial drive load
     {
@@ -94,10 +76,9 @@ pub fn launch() -> Result<(), slint::PlatformError> {
         let appw = app.as_weak();
         let state = state.clone();
         app.on_refresh_drives(move || {
-            let show_all = state.borrow().show_all;
             let backend = MacOsBackend;
             let drives = backend
-                .list_devices(&ListOptions { show_all })
+                .list_devices(&ListOptions { show_all: false })
                 .unwrap_or_default();
             let mut s = state.borrow_mut();
             s.drives = drives;
@@ -120,26 +101,6 @@ pub fn launch() -> Result<(), slint::PlatformError> {
                 s.selected = new_sel;
                 s.has_selected = true;
             }
-            if let Some(a) = appw.upgrade() {
-                refresh_ui(&a, &s);
-            }
-        });
-    }
-
-    // ── toggle-show-all ────────────────────────────────────────────────────
-    {
-        let appw = app.as_weak();
-        let state = state.clone();
-        app.on_toggle_show_all(move |show_all| {
-            let backend = MacOsBackend;
-            let drives = backend
-                .list_devices(&ListOptions { show_all })
-                .unwrap_or_default();
-            let mut s = state.borrow_mut();
-            s.show_all = show_all;
-            s.drives = drives;
-            s.has_selected = false;
-            s.selected = 0;
             if let Some(a) = appw.upgrade() {
                 refresh_ui(&a, &s);
             }
@@ -227,157 +188,6 @@ pub fn launch() -> Result<(), slint::PlatformError> {
         });
     }
 
-    // ── select-iso-version: refresh language list ──────────────────────────
-    {
-        let appw = app.as_weak();
-        app.on_select_iso_version(move |idx| {
-            let langs = languages_for_index(idx as usize);
-            if let Some(a) = appw.upgrade() {
-                a.set_iso_language_names(ModelRc::new(VecModel::from(langs)));
-                a.set_iso_language_index(0);
-            }
-        });
-    }
-
-    // ── cancel-iso-download ────────────────────────────────────────────────
-    {
-        let cancel = download_cancel.clone();
-        app.on_cancel_iso_download(move || {
-            cancel.store(true, Ordering::SeqCst);
-        });
-    }
-
-    // ── start-iso-download ─────────────────────────────────────────────────
-    {
-        let appw = app.as_weak();
-        let cancel = download_cancel.clone();
-        app.on_start_iso_download(move |version_idx, lang_idx| {
-            let entry = match download::list_catalog().get(version_idx as usize) {
-                Some(e) => e.clone(),
-                None => return,
-            };
-            let locale = entry
-                .locales
-                .get(lang_idx as usize)
-                .copied()
-                .unwrap_or("en-us")
-                .to_string();
-
-            // Compute output path: ~/Downloads/<id>-<locale>.iso, fallback to temp
-            let dl_dir = dirs::download_dir().unwrap_or_else(std::env::temp_dir);
-            let mut out_path: PathBuf = dl_dir;
-            out_path.push(format!("{}-{}.iso", entry.id, locale));
-            let out_str = out_path.to_string_lossy().to_string();
-
-            cancel.store(false, Ordering::SeqCst);
-
-            if let Some(a) = appw.upgrade() {
-                a.set_error_message("".into());
-                a.set_download_active(true);
-                a.set_progress_value(0);
-                a.set_status_text(format!("Fetching link for {}…", entry.name).into());
-            }
-
-            let appw2 = appw.clone();
-            let cancel2 = cancel.clone();
-            let entry_name = entry.name.to_string();
-            std::thread::spawn(move || {
-                let url_result = download::get_download_url(&entry, &locale);
-                if cancel2.load(Ordering::SeqCst) {
-                    finish_download_cancelled(&appw2);
-                    return;
-                }
-                let url = match url_result {
-                    Ok(u) => u,
-                    Err(e) => {
-                        let aw = appw2.clone();
-                        let msg = format!("Could not get download link: {}", e);
-                        let _ = slint::invoke_from_event_loop(move || {
-                            if let Some(a) = aw.upgrade() {
-                                a.set_download_active(false);
-                                a.set_progress_value(0);
-                                a.set_status_text("".into());
-                                a.set_error_message(msg.into());
-                            }
-                        });
-                        return;
-                    }
-                };
-
-                {
-                    let aw = appw2.clone();
-                    let name = entry_name.clone();
-                    let _ = slint::invoke_from_event_loop(move || {
-                        if let Some(a) = aw.upgrade() {
-                            a.set_status_text(format!("Downloading {}…", name).into());
-                        }
-                    });
-                }
-
-                let aw_cb = appw2.clone();
-                let cancel_cb = cancel2.clone();
-                let name_cb = entry_name.clone();
-                let result = download::download_iso(&url, &out_str, move |done, total| {
-                    if cancel_cb.load(Ordering::SeqCst) {
-                        return;
-                    }
-                    let pct = if total > 0 { (done * 100 / total).min(100) } else { 0 };
-                    let mb_done = done as f64 / (1024.0 * 1024.0);
-                    let mb_total = total as f64 / (1024.0 * 1024.0);
-                    let status = if total > 0 {
-                        format!("Downloading {}  ({:.0} / {:.0} MiB)", name_cb, mb_done, mb_total)
-                    } else {
-                        format!("Downloading {}  ({:.0} MiB)", name_cb, mb_done)
-                    };
-                    let aw = aw_cb.clone();
-                    let _ = slint::invoke_from_event_loop(move || {
-                        if let Some(a) = aw.upgrade() {
-                            a.set_progress_value(pct as i32);
-                            a.set_status_text(status.into());
-                        }
-                    });
-                });
-
-                if cancel2.load(Ordering::SeqCst) {
-                    // Best-effort cleanup
-                    let _ = std::fs::remove_file(&out_str);
-                    finish_download_cancelled(&appw2);
-                    return;
-                }
-
-                match result {
-                    Ok(_bytes) => {
-                        let aw = appw2.clone();
-                        let path_for_state = out_str.clone();
-                        let _ = slint::invoke_from_event_loop(move || {
-                            if let Some(a) = aw.upgrade() {
-                                a.set_download_active(false);
-                                a.set_progress_value(100);
-                                a.set_status_text(
-                                    format!("Downloaded → {}", path_for_state).into(),
-                                );
-                                // Reuse drop-file handler to set source state + UI consistently
-                                a.invoke_drop_file(path_for_state.into());
-                            }
-                        });
-                    }
-                    Err(e) => {
-                        let aw = appw2.clone();
-                        let msg = format!("Download failed: {}", e);
-                        let _ = slint::invoke_from_event_loop(move || {
-                            if let Some(a) = aw.upgrade() {
-                                a.set_download_active(false);
-                                a.set_progress_value(0);
-                                a.set_status_text("".into());
-                                a.set_error_message(msg.into());
-                            }
-                        });
-                    }
-                }
-            });
-        });
-    }
-
     // ── flash-now (shows confirmation first) ───────────────────────────────
     {
         let appw = app.as_weak();
@@ -419,14 +229,14 @@ pub fn launch() -> Result<(), slint::PlatformError> {
                 a.set_show_confirm(false);
             }
 
-            let (source_input, target, format_first, macos_installer, bypass_requirements) = {
+            let (source_input, target, macos_installer, bypass_requirements) = {
                 let s = state.borrow();
                 if s.drives.is_empty() || s.source.is_none() {
                     return;
                 }
                 let src = s.source.clone().unwrap_or_default();
                 let tgt = s.drives[s.selected.min(s.drives.len() - 1)].id.clone();
-                (src, tgt, s.format_first, s.macos_installer, s.bypass_requirements)
+                (src, tgt, s.macos_installer, s.bypass_requirements)
             };
 
             if let Some(a) = appw.upgrade() {
@@ -445,7 +255,7 @@ pub fn launch() -> Result<(), slint::PlatformError> {
                     block_size: 1024 * 1024,
                     verify: true,
                     verify_mode: VerifyMode::ByteByByte,
-                    format_before_write: format_first,
+                    format_before_write: false,
                     format_scheme: PartitionScheme::Gpt,
                     format_fs: FilesystemType::Fat32,
                     flash_mode: FlashMode::RawWrite,
@@ -506,80 +316,6 @@ pub fn launch() -> Result<(), slint::PlatformError> {
     app.run()
 }
 
-fn finish_download_cancelled(appw: &slint::Weak<AppWindow>) {
-    let aw = appw.clone();
-    let _ = slint::invoke_from_event_loop(move || {
-        if let Some(a) = aw.upgrade() {
-            a.set_download_active(false);
-            a.set_progress_value(0);
-            a.set_status_text("Download cancelled.".into());
-        }
-    });
-}
-
-fn languages_for_index(idx: usize) -> Vec<SharedString> {
-    download::list_catalog()
-        .get(idx)
-        .map(|e| {
-            e.locales
-                .iter()
-                .map(|l| SharedString::from(locale_display_name(l)))
-                .collect()
-        })
-        .unwrap_or_else(|| vec![SharedString::from("English (US)")])
-}
-
-fn locale_display_name(code: &str) -> &'static str {
-    match code {
-        "ar-sa" => "Arabic",
-        "bg-bg" => "Bulgarian",
-        "cs-cz" => "Czech",
-        "da-dk" => "Danish",
-        "de-de" => "German",
-        "el-gr" => "Greek",
-        "en-gb" => "English (UK)",
-        "en-us" => "English (US)",
-        "es-es" => "Spanish",
-        "es-mx" => "Spanish (Mexico)",
-        "et-ee" => "Estonian",
-        "fi-fi" => "Finnish",
-        "fr-ca" => "French (Canada)",
-        "fr-fr" => "French",
-        "he-il" => "Hebrew",
-        "hr-hr" => "Croatian",
-        "hu-hu" => "Hungarian",
-        "it-it" => "Italian",
-        "ja-jp" => "Japanese",
-        "ko-kr" => "Korean",
-        "lt-lt" => "Lithuanian",
-        "lv-lv" => "Latvian",
-        "nb-no" => "Norwegian",
-        "nl-nl" => "Dutch",
-        "pl-pl" => "Polish",
-        "pt-br" => "Portuguese (Brazil)",
-        "pt-pt" => "Portuguese",
-        "ro-ro" => "Romanian",
-        "ru-ru" => "Russian",
-        "sk-sk" => "Slovak",
-        "sl-si" => "Slovenian",
-        "sr-latn-rs" => "Serbian",
-        "sv-se" => "Swedish",
-        "th-th" => "Thai",
-        "tr-tr" => "Turkish",
-        "uk-ua" => "Ukrainian",
-        "zh-cn" => "Chinese (Simplified)",
-        "zh-tw" => "Chinese (Traditional)",
-        other => {
-            // Fallback: return the code unchanged. Use a leak to satisfy 'static.
-            // Since locale codes come from a static catalog, this branch is dead
-            // in practice, but we need a 'static return. Use a small allowlist
-            // of known codes only — otherwise return a generic placeholder.
-            let _ = other;
-            "Other"
-        }
-    }
-}
-
 // ── State ─────────────────────────────────────────────────────────────────────
 
 #[derive(Default)]
@@ -589,8 +325,6 @@ struct UiState {
     has_selected: bool,
     source: Option<String>,
     source_is_url: bool,
-    show_all: bool,
-    format_first: bool,
     macos_installer: bool,
     bypass_requirements: bool,
 }
