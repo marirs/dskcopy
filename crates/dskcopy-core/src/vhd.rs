@@ -379,7 +379,8 @@ fn parse_vhdx_metadata(f: &mut File, meta_region_offset: u64) -> Result<VhdxMeta
 
         let item_offset = u32::from_le_bytes(entry[16..20].try_into().unwrap()) as u64;
         let item_length = u32::from_le_bytes(entry[20..24].try_into().unwrap()) as usize;
-        let saved_pos = f.stream_position()
+        let saved_pos = f
+            .stream_position()
             .map_err(|e| VhdError::Io(e.to_string()))?;
 
         // Read item data
@@ -590,7 +591,8 @@ pub fn open_ffu_reader(path: &str) -> Result<Box<dyn Read + Send + 'static>, Vhd
     }
 
     // Data starts after entries, aligned to chunk boundary
-    let data_start = f.stream_position()
+    let data_start = f
+        .stream_position()
         .map_err(|e| VhdError::Io(e.to_string()))?;
     let aligned_data_start = if data_start % chunk_size == 0 {
         data_start

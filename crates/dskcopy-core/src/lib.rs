@@ -93,8 +93,7 @@ pub enum IsoContent {
 
 // ── Flash mode ────────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum FlashMode {
     /// Stream raw bytes to device (default)
     #[default]
@@ -108,7 +107,6 @@ pub enum FlashMode {
     /// Delegate to macOS createinstallmedia
     MacosCreateInstallMedia,
 }
-
 
 // ── Flash options ─────────────────────────────────────────────────────────────
 
