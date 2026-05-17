@@ -94,8 +94,10 @@ pub enum IsoContent {
 // ── Flash mode ────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum FlashMode {
     /// Stream raw bytes to device (default)
+    #[default]
     RawWrite,
     /// Format drive, extract ISO contents to filesystem
     ExtractedFile,
@@ -107,11 +109,6 @@ pub enum FlashMode {
     MacosCreateInstallMedia,
 }
 
-impl Default for FlashMode {
-    fn default() -> Self {
-        FlashMode::RawWrite
-    }
-}
 
 // ── Flash options ─────────────────────────────────────────────────────────────
 

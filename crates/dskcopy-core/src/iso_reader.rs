@@ -185,7 +185,7 @@ fn read_directory(
 /// Decode an ISO directory entry name. Handles ASCII (PVD) and UTF-16BE (Joliet).
 fn decode_iso_name(raw: &[u8], _rec: &[u8]) -> String {
     // Joliet uses UTF-16 BE — detect by checking if every other byte looks like ASCII
-    if raw.len() >= 4 && raw.len() % 2 == 0 {
+    if raw.len() >= 4 && raw.len().is_multiple_of(2) {
         let looks_utf16 = raw.chunks(2).all(|c| c[0] == 0 || c[1] == 0);
         if looks_utf16 && raw[0] == 0 {
             // UTF-16 BE

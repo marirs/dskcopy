@@ -532,7 +532,7 @@ pub fn format_windows_usb_ntfs(
     let sector_size: u64 = 512;
     // FAT32 UEFI-NTFS loader: 1 MiB
     let fat_lba_start: u64 = 2048;
-    let fat_sectors: u64 = (1 * 1024 * 1024) / sector_size;
+    let fat_sectors: u64 = (1024 * 1024) / sector_size;
     let fat_lba_end: u64 = fat_lba_start + fat_sectors;
     let ntfs_lba_start: u64 = fat_lba_end + 1;
     let ntfs_lba_end: u64 = (disk_size / sector_size).saturating_sub(34);

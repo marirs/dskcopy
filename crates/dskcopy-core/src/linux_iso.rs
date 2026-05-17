@@ -152,7 +152,7 @@ fn extract_to_fat<T: fatfs::ReadWriteSeek>(
 ) -> Result<u64, FlashError> {
     ensure_dirs(root, rel_path)?;
 
-    let file_name = rel_path.split('/').last().unwrap_or(rel_path);
+    let file_name = rel_path.split('/').next_back().unwrap_or(rel_path);
     let mut fat_file = root
         .create_file(file_name)
         .map_err(|e| FlashError::User(format!("Cannot create FAT file '{}': {e}", file_name)))?;

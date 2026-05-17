@@ -30,7 +30,8 @@ pub fn flash_multi(
     let source_data = load_source_if_fits(source);
 
     let cb = Arc::new(cb);
-    let results: Arc<Mutex<Vec<Option<Result<FlashResult, String>>>>> =
+    type FlashSlot = Option<Result<FlashResult, String>>;
+    let results: Arc<Mutex<Vec<FlashSlot>>> =
         Arc::new(Mutex::new(vec![None; targets.len()]));
 
     let progress_state: Arc<Mutex<Vec<TargetProgress>>> = Arc::new(Mutex::new(

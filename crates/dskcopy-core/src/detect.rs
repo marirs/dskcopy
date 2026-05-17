@@ -104,11 +104,11 @@ fn probe_raw_magic(path: &str) -> RawImageType {
     // ── VHD: "conectix" cookie in last 512 bytes ──────────────────────────
     if let Ok(meta) = f.metadata() {
         let file_len = meta.len();
-        if file_len >= 512 {
-            if f.seek(SeekFrom::Start(file_len - 512)).is_ok() {
+        if file_len >= 512
+            && f.seek(SeekFrom::Start(file_len - 512)).is_ok() {
                 let mut footer = [0u8; 8];
-                if f.read_exact(&mut footer).is_ok() {
-                    if &footer == b"conectix" {
+                if f.read_exact(&mut footer).is_ok()
+                    && &footer == b"conectix" {
                         // Determine fixed vs dynamic from disk_type field at offset +60 in footer
                         let _ = f.seek(SeekFrom::Start(file_len - 512 + 60));
                         let mut dt = [0u8; 4];
@@ -123,22 +123,19 @@ fn probe_raw_magic(path: &str) -> RawImageType {
                             RawImageType::VhdDynamic
                         };
                     }
-                }
             }
-        }
     }
 
     // ── DMG koly trailer ─────────────────────────────────────────────────
     if let Ok(meta) = f.metadata() {
         let file_len = meta.len();
-        if file_len >= 512 {
-            if f.seek(SeekFrom::Start(file_len - 512)).is_ok() {
+        if file_len >= 512
+            && f.seek(SeekFrom::Start(file_len - 512)).is_ok() {
                 let mut trailer = [0u8; 4];
                 if f.read_exact(&mut trailer).is_ok() && &trailer == b"koly" {
                     return RawImageType::AppleDmg;
                 }
             }
-        }
     }
 
     // ── ISO 9660 ─────────────────────────────────────────────────────────

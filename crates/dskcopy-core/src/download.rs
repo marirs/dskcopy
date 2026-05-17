@@ -391,9 +391,7 @@ pub fn list_macos_from_catalog() -> Result<Vec<MacOsInstaller>, DownloadError> {
             None => ("macOS".to_string(), String::new()),
         };
 
-        let display = if version.is_empty() {
-            name.clone()
-        } else if name.contains(&version) {
+        let display = if version.is_empty() || name.contains(&version) {
             name.clone()
         } else {
             format!("{} {}", name, version)

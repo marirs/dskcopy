@@ -9,7 +9,7 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::time::Instant;
 
 const SECTOR_SIZE: u64 = 4096; // 4 KiB test blocks
-const SEED: u64 = 0xDEAD_BEEF_C0FFEE42;
+const SEED: u64 = 0xDEAD_BEEF_C0FF_EE42;
 
 #[derive(Debug, Clone)]
 pub enum CheckError {
@@ -147,12 +147,9 @@ fn check_read_write(
         f.seek(SeekFrom::Start(pos))
             .map_err(|e| CheckError::Io(e.to_string()))?;
 
-        match f.read_exact(&mut buf) {
-            Err(_) => {
-                bad_sectors.push(sector_idx);
-                continue;
-            }
-            Ok(_) => {}
+        if f.read_exact(&mut buf).is_err() {
+            bad_sectors.push(sector_idx);
+            continue;
         }
 
         let expected = make_pattern(sector_idx);

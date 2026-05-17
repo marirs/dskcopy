@@ -456,7 +456,7 @@ fn do_download(
     _output: String,
 ) -> Result<(), String> {
     if list {
-        println!("{:<20} {}", "ID", "Name");
+        println!("{:<20} Name", "ID");
         println!("{}", "-".repeat(60));
         for entry in download::list_catalog() {
             println!("{:<20} {}", entry.id, entry.name);

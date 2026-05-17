@@ -180,13 +180,13 @@ impl Read for DynamicVhdReader {
 
         // Calculate absolute offset: BAT entry is in sectors (512 bytes)
         // Add sector bitmap (block_size / 512 / 8 bytes) before data
-        let sector_bitmap_size = ((self.block_size / 512) + 7) / 8;
+        let sector_bitmap_size = (self.block_size / 512).div_ceil(8);
         let block_file_offset =
             self.bat[block_idx] as u64 * 512 + sector_bitmap_size + offset_in_block;
 
         self.file
             .seek(SeekFrom::Start(block_file_offset))
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+            .map_err(|e| io::Error::other(e.to_string()))?;
         let n = self.file.read(&mut buf[..this_read])?;
         self.logical_pos += n as u64;
         Ok(n)
@@ -379,8 +379,7 @@ fn parse_vhdx_metadata(f: &mut File, meta_region_offset: u64) -> Result<VhdxMeta
 
         let item_offset = u32::from_le_bytes(entry[16..20].try_into().unwrap()) as u64;
         let item_length = u32::from_le_bytes(entry[20..24].try_into().unwrap()) as usize;
-        let saved_pos = f
-            .seek(SeekFrom::Current(0))
+        let saved_pos = f.stream_position()
             .map_err(|e| VhdError::Io(e.to_string()))?;
 
         // Read item data
@@ -479,10 +478,9 @@ impl Read for VhdxReader {
         let this_read = buf.len().min(can_read_in_block);
 
         // BAT index for this data block (interleaved with sector-bitmap entries)
-        let bat_idx = if self.chunk_ratio > 0 {
-            data_block_idx + data_block_idx / self.chunk_ratio
-        } else {
-            data_block_idx
+        let bat_idx = match data_block_idx.checked_div(self.chunk_ratio) {
+            Some(extra) => data_block_idx + extra,
+            None => data_block_idx,
         };
 
         if bat_idx as usize >= self.bat.len() {
@@ -507,7 +505,7 @@ impl Read for VhdxReader {
 
         self.file
             .seek(SeekFrom::Start(file_offset))
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+            .map_err(|e| io::Error::other(e.to_string()))?;
 
         let n = self.file.read(&mut buf[..this_read])?;
         self.logical_pos += n as u64;
@@ -592,8 +590,7 @@ pub fn open_ffu_reader(path: &str) -> Result<Box<dyn Read + Send + 'static>, Vhd
     }
 
     // Data starts after entries, aligned to chunk boundary
-    let data_start = f
-        .seek(SeekFrom::Current(0))
+    let data_start = f.stream_position()
         .map_err(|e| VhdError::Io(e.to_string()))?;
     let aligned_data_start = if data_start % chunk_size == 0 {
         data_start
@@ -646,7 +643,7 @@ impl Read for FfuReader {
 
             self.file
                 .seek(SeekFrom::Start(file_offset))
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+                .map_err(|e| io::Error::other(e.to_string()))?;
 
             let remaining_in_chunk = (self.chunk_size - self.chunk_pos) as usize;
             let to_read = buf.len().min(remaining_in_chunk);

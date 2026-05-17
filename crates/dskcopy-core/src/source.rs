@@ -109,7 +109,7 @@ impl SourceDescriptor {
                 let mut archive = zip::ZipArchive::new(file2).map_err(|e| {
                     FlashError::User(format!("Could not parse zip archive '{}': {}", path, e))
                 })?;
-                if archive.len() == 0 {
+                if archive.is_empty() {
                     return Err(FlashError::User("Zip archive is empty.".to_string()));
                 }
                 let entry = archive
@@ -182,7 +182,7 @@ impl SourceDescriptor {
                 let mut archive = zip::ZipArchive::new(cursor).map_err(|e| {
                     FlashError::User(format!("Could not parse downloaded zip: {}", e))
                 })?;
-                if archive.len() == 0 {
+                if archive.is_empty() {
                     return Err(FlashError::User(
                         "Downloaded zip archive is empty.".to_string(),
                     ));
@@ -395,7 +395,7 @@ impl Read for ChannelReader {
                     self.buf = chunk;
                     self.pos = 0;
                 }
-                Ok(Err(e)) => return Err(io::Error::new(io::ErrorKind::Other, e)),
+                Ok(Err(e)) => return Err(io::Error::other(e)),
                 Err(_) => return Ok(0), // channel closed = EOF
             }
         }

@@ -422,7 +422,7 @@ fn copy_entry_to_fat<T: fatfs::ReadWriteSeek>(
 ) -> Result<u64, FlashError> {
     ensure_fat_dirs(root, rel_path)?;
 
-    let file_name = rel_path.split('/').last().unwrap_or(rel_path);
+    let file_name = rel_path.split('/').next_back().unwrap_or(rel_path);
     let mut fat_file = root
         .create_file(file_name)
         .map_err(|e| FlashError::User(format!("Cannot create FAT file '{}': {e}", file_name)))?;
@@ -490,7 +490,7 @@ fn split_and_write_wim<T: fatfs::ReadWriteSeek>(
 
     // Compute number of parts
     let total_size = entry.size;
-    let num_parts = ((total_size + WIM_PART_MAX - 1) / WIM_PART_MAX) as u16;
+    let num_parts = total_size.div_ceil(WIM_PART_MAX) as u16;
 
     // Seek back to start of WIM data
     iso_file
